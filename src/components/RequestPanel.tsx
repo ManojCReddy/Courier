@@ -44,10 +44,26 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
   };
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateField('url', e.target.value);
+    const newUrl = e.target.value;
+    
+    // Auto-detect URI/Path parameters like :id or {id}
+    const colonMatches = Array.from(newUrl.matchAll(/:([a-zA-Z0-9_]+)/g)).map(m => m[1]);
+    const braceMatches = Array.from(newUrl.matchAll(/\{([a-zA-Z0-9_]+)\}/g)).map(m => m[1]);
+    const detectedKeys = Array.from(new Set([...colonMatches, ...braceMatches]));
+
+    let currentPathParams = request.pathParams || [];
+    let updatedPathParams = [...currentPathParams];
+
+    detectedKeys.forEach(k => {
+      if (!updatedPathParams.some(p => p.key === k)) {
+        updatedPathParams.push({ key: k, value: '', enabled: true });
+      }
+    });
+
+    onUpdateRequest({ ...request, url: newUrl, pathParams: updatedPathParams });
   };
 
-  // Params
+  // Query Params
   const addParam = () => {
     const params = [...request.params, { key: '', value: '', enabled: true }];
     updateField('params', params);
@@ -62,6 +78,23 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
   const removeParam = (idx: number) => {
     const params = request.params.filter((_, i) => i !== idx);
     updateField('params', params);
+  };
+
+  // Path / URI Params
+  const addPathParam = () => {
+    const pParams = [...(request.pathParams || []), { key: '', value: '', enabled: true }];
+    updateField('pathParams', pParams);
+  };
+
+  const updatePathParam = (idx: number, patch: Partial<KeyValuePair>) => {
+    const pParams = [...(request.pathParams || [])];
+    pParams[idx] = { ...pParams[idx], ...patch };
+    updateField('pathParams', pParams);
+  };
+
+  const removePathParam = (idx: number) => {
+    const pParams = (request.pathParams || []).filter((_, i) => i !== idx);
+    updateField('pathParams', pParams);
   };
 
   // Headers
@@ -284,77 +317,158 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
 
       {/* Tab Contents */}
       <div className="flex-1 overflow-y-auto p-4">
-        {/* PARAMS TAB */}
+        {/* PARAMS TAB: Both Path Variables (URI Params) and Query Parameters */}
         {activeTab === 'params' && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-zinc-400 font-medium">Query Parameters</span>
-              <button
-                onClick={addParam}
-                className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add Param
-              </button>
+          <div className="space-y-6">
+            {/* 1. Path Variables / URI Parameters */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-zinc-300 font-semibold flex items-center gap-1.5">
+                    Path Variables (URI Params)
+                    <span className="text-[10px] text-zinc-500 font-normal">e.g. /users/:id or /users/{'{id}'}</span>
+                  </span>
+                </div>
+                <button
+                  onClick={addPathParam}
+                  className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Path Variable
+                </button>
+              </div>
+
+              <div className="border border-zinc-800 rounded-lg overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400">
+                    <tr>
+                      <th className="p-2 w-8 text-center"></th>
+                      <th className="p-2 w-1/3">Parameter (e.g. id)</th>
+                      <th className="p-2 w-1/2">Value</th>
+                      <th className="p-2 w-10 text-center"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/60 bg-zinc-950/40 font-mono">
+                    {(request.pathParams || []).map((p, idx) => (
+                      <tr key={idx} className="hover:bg-zinc-900/40">
+                        <td className="p-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={p.enabled}
+                            onChange={(e) => updatePathParam(idx, { enabled: e.target.checked })}
+                            className="rounded bg-zinc-800 border-zinc-700 text-emerald-500 focus:ring-0 cursor-pointer"
+                          />
+                        </td>
+                        <td className="p-2">
+                          <input
+                            type="text"
+                            value={p.key}
+                            onChange={(e) => updatePathParam(idx, { key: e.target.value })}
+                            placeholder="paramName"
+                            className="w-full bg-transparent text-zinc-200 focus:outline-none text-emerald-400 font-semibold"
+                          />
+                        </td>
+                        <td className="p-2">
+                          <input
+                            type="text"
+                            value={p.value}
+                            onChange={(e) => updatePathParam(idx, { value: e.target.value })}
+                            placeholder="value or {{var}}"
+                            className="w-full bg-transparent text-zinc-200 focus:outline-none"
+                          />
+                        </td>
+                        <td className="p-2 text-center">
+                          <button
+                            onClick={() => removePathParam(idx)}
+                            className="text-zinc-500 hover:text-rose-400 p-1 rounded"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {(!request.pathParams || request.pathParams.length === 0) && (
+                      <tr>
+                        <td colSpan={4} className="p-3 text-center text-zinc-500 italic">
+                          No path variables detected. Use <code className="text-emerald-400">:id</code> or <code className="text-emerald-400">{'{id}'}</code> in the URL to automatically create path parameters.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
-            <div className="border border-zinc-800 rounded-lg overflow-hidden">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400">
-                  <tr>
-                    <th className="p-2 w-8 text-center"></th>
-                    <th className="p-2 w-1/3">Key</th>
-                    <th className="p-2 w-1/2">Value</th>
-                    <th className="p-2 w-10 text-center"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-800/60 bg-zinc-950/40">
-                  {request.params.map((p, idx) => (
-                    <tr key={idx} className="hover:bg-zinc-900/40">
-                      <td className="p-2 text-center">
-                        <input
-                          type="checkbox"
-                          checked={p.enabled}
-                          onChange={(e) => updateParam(idx, { enabled: e.target.checked })}
-                          className="rounded bg-zinc-800 border-zinc-700 text-emerald-500 focus:ring-0 cursor-pointer"
-                        />
-                      </td>
-                      <td className="p-2">
-                        <input
-                          type="text"
-                          value={p.key}
-                          onChange={(e) => updateParam(idx, { key: e.target.value })}
-                          placeholder="parameter"
-                          className="w-full bg-transparent text-zinc-200 focus:outline-none font-mono"
-                        />
-                      </td>
-                      <td className="p-2">
-                        <input
-                          type="text"
-                          value={p.value}
-                          onChange={(e) => updateParam(idx, { value: e.target.value })}
-                          placeholder="value or {{var}}"
-                          className="w-full bg-transparent text-zinc-200 focus:outline-none font-mono"
-                        />
-                      </td>
-                      <td className="p-2 text-center">
-                        <button
-                          onClick={() => removeParam(idx)}
-                          className="text-zinc-500 hover:text-rose-400 p-1 rounded"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {request.params.length === 0 && (
+            {/* 2. Query Parameters */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-zinc-300 font-semibold">Query Parameters</span>
+                <button
+                  onClick={addParam}
+                  className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Param
+                </button>
+              </div>
+
+              <div className="border border-zinc-800 rounded-lg overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-zinc-900 border-b border-zinc-800 text-zinc-400">
                     <tr>
-                      <td colSpan={4} className="p-4 text-center text-zinc-500 italic">
-                        No query parameters. Click "+ Add Param" to create one.
-                      </td>
+                      <th className="p-2 w-8 text-center"></th>
+                      <th className="p-2 w-1/3">Key</th>
+                      <th className="p-2 w-1/2">Value</th>
+                      <th className="p-2 w-10 text-center"></th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/60 bg-zinc-950/40 font-mono">
+                    {request.params.map((p, idx) => (
+                      <tr key={idx} className="hover:bg-zinc-900/40">
+                        <td className="p-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={p.enabled}
+                            onChange={(e) => updateParam(idx, { enabled: e.target.checked })}
+                            className="rounded bg-zinc-800 border-zinc-700 text-emerald-500 focus:ring-0 cursor-pointer"
+                          />
+                        </td>
+                        <td className="p-2">
+                          <input
+                            type="text"
+                            value={p.key}
+                            onChange={(e) => updateParam(idx, { key: e.target.value })}
+                            placeholder="parameter"
+                            className="w-full bg-transparent text-zinc-200 focus:outline-none"
+                          />
+                        </td>
+                        <td className="p-2">
+                          <input
+                            type="text"
+                            value={p.value}
+                            onChange={(e) => updateParam(idx, { value: e.target.value })}
+                            placeholder="value or {{var}}"
+                            className="w-full bg-transparent text-zinc-200 focus:outline-none"
+                          />
+                        </td>
+                        <td className="p-2 text-center">
+                          <button
+                            onClick={() => removeParam(idx)}
+                            className="text-zinc-500 hover:text-rose-400 p-1 rounded"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {request.params.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="p-3 text-center text-zinc-500 italic">
+                          No query parameters. Click "+ Add Param" to add <code className="text-zinc-400">?key=value</code>.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}

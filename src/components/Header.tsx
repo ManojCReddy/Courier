@@ -1,6 +1,6 @@
 import React from 'react';
-import { Play, Sparkles, Sliders, Terminal, Globe, Plus, ShieldCheck } from 'lucide-react';
-import { Environment } from '../types';
+import { Play, Sparkles, Sliders, Terminal, Globe, Plus, ShieldCheck, Settings, Columns, Rows } from 'lucide-react';
+import { Environment, AppSettings } from '../types';
 
 interface HeaderProps {
   environments: Environment[];
@@ -9,6 +9,9 @@ interface HeaderProps {
   onOpenEnvModal: () => void;
   onOpenCurlModal: () => void;
   onOpenSuiteRunner: () => void;
+  onOpenSettingsModal: () => void;
+  layout: AppSettings['layout'];
+  onToggleLayout: () => void;
   copilotOpen: boolean;
   onToggleCopilot: () => void;
 }
@@ -20,6 +23,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenEnvModal,
   onOpenCurlModal,
   onOpenSuiteRunner,
+  onOpenSettingsModal,
+  layout,
+  onToggleLayout,
   copilotOpen,
   onToggleCopilot,
 }) => {
@@ -90,6 +96,22 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Play className="w-3.5 h-3.5 fill-emerald-400/20 text-emerald-400" />
           <span>Run Suite</span>
+        </button>
+
+        <button
+          onClick={onToggleLayout}
+          className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-700/80 transition-colors"
+          title={layout === 'horizontal' ? 'Switch to Stacked View (Response Underneath)' : 'Switch to Side-by-Side View'}
+        >
+          {layout === 'horizontal' ? <Rows className="w-3.5 h-3.5" /> : <Columns className="w-3.5 h-3.5" />}
+        </button>
+
+        <button
+          onClick={onOpenSettingsModal}
+          className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-700/80 transition-colors"
+          title="Preferences & Settings (SSL, Autosave, Timeout)"
+        >
+          <Settings className="w-3.5 h-3.5" />
         </button>
 
         <div className="h-4 w-[1px] bg-zinc-800 mx-1" />

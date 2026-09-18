@@ -1,15 +1,17 @@
+import https from 'https';
 import axios from 'axios';
 import { resolveDeep, resolveVariables } from './variableResolver.js';
 import { runAssertions } from './assertionEngine.js';
 
 /**
- * Executes an HTTP request with full environment variable resolution and timing
+ * Executes an HTTP request with environment variables, path params, SSL toggle, and timings
  */
-export async function executeHttpRequest(requestConfig, environment = {}) {
+export async function executeHttpRequest(requestConfig, environment = {}, settings = {}) {
   const {
     method = 'GET',
     url = '',
     params = [],
+    pathParams = [],
     headers = [],
     body = '',
     bodyType = 'none',
@@ -21,13 +23,29 @@ export async function executeHttpRequest(requestConfig, environment = {}) {
     throw new Error('URL cannot be empty');
   }
 
-  // 1. Resolve URL
-  let resolvedUrl = resolveVariables(url.trim(), environment);
+  // 1. Resolve Path Variables / URI params (e.g. :id or {id})
+  let resolvedUrl = url.trim();
+  if (Array.isArray(pathParams)) {
+    for (const p of pathParams) {
+      if (p.enabled && p.key && p.key.trim()) {
+        const k = p.key.trim().replace(/^[:{}]*/, '').replace(/[}]*$/, '');
+        const v = resolveVariables(p.value || '', environment);
+        
+        // Match :param and {param}
+        const colonRegex = new RegExp(`:${k}\\b`, 'g');
+        const braceRegex = new RegExp(`\\{${k}\\}`, 'g');
+        resolvedUrl = resolvedUrl.replace(colonRegex, v).replace(braceRegex, v);
+      }
+    }
+  }
+
+  // 2. Resolve Environment & Dynamic Variables in URL
+  resolvedUrl = resolveVariables(resolvedUrl, environment);
   if (!/^https?:\/\//i.test(resolvedUrl)) {
     resolvedUrl = 'https://' + resolvedUrl;
   }
 
-  // 2. Resolve & Build Query Params
+  // 3. Resolve & Build Query Params
   const queryParams = {};
   if (Array.isArray(params)) {
     for (const p of params) {
@@ -39,7 +57,7 @@ export async function executeHttpRequest(requestConfig, environment = {}) {
     }
   }
 
-  // 3. Resolve & Build Headers
+  // 4. Resolve & Build Headers
   const resolvedHeaders = {};
   if (Array.isArray(headers)) {
     for (const h of headers) {
@@ -51,7 +69,7 @@ export async function executeHttpRequest(requestConfig, environment = {}) {
     }
   }
 
-  // 4. Handle Authentication
+  // 5. Handle Authentication
   if (auth && auth.type) {
     if (auth.type === 'bearer' && auth.bearerToken) {
       const token = resolveVariables(auth.bearerToken, environment);
@@ -72,7 +90,7 @@ export async function executeHttpRequest(requestConfig, environment = {}) {
     }
   }
 
-  // 5. Build & Resolve Body
+  // 6. Build & Resolve Body
   let resolvedData = undefined;
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase())) {
     if (bodyType === 'json' && body) {
@@ -105,7 +123,7 @@ export async function executeHttpRequest(requestConfig, environment = {}) {
     }
   }
 
-  // Generate equivalent cURL string
+  // cURL string representation
   const curlCmd = buildCurlString({
     method,
     url: resolvedUrl,
@@ -114,7 +132,15 @@ export async function executeHttpRequest(requestConfig, environment = {}) {
     data: resolvedData,
   });
 
-  // 6. Execute Request & Measure Latency
+  // 7. HTTPS Agent (SSL Certificate Verification Setting)
+  const disableSsl = settings.disableSslVerification ?? false;
+  const httpsAgent = new https.Agent({
+    rejectUnauthorized: !disableSsl,
+  });
+
+  const timeoutMs = parseInt(settings.defaultTimeoutMs || '30000', 10);
+
+  // 8. Execute Request & Measure Latency
   const startTime = performance.now();
   try {
     const response = await axios({
@@ -123,8 +149,9 @@ export async function executeHttpRequest(requestConfig, environment = {}) {
       params: queryParams,
       headers: resolvedHeaders,
       data: resolvedData,
-      validateStatus: () => true, // capture all status codes (4xx, 5xx) as responses, not throws
-      timeout: 30000,
+      httpsAgent,
+      validateStatus: () => true, // capture all status codes
+      timeout: timeoutMs,
       transformResponse: [(data) => {
         try {
           return JSON.parse(data);
@@ -137,7 +164,6 @@ export async function executeHttpRequest(requestConfig, environment = {}) {
     const endTime = performance.now();
     const timeMs = Math.round(endTime - startTime);
 
-    // Calculate approximate response size in bytes
     let sizeBytes = 0;
     if (response.data) {
       const dataStr = typeof response.data === 'string'
@@ -185,7 +211,6 @@ export async function executeHttpRequest(requestConfig, environment = {}) {
 function buildCurlString({ method, url, params, headers, data }) {
   let cmd = `curl -X ${method.toUpperCase()} "${url}`;
   
-  // Attach params if present
   const paramKeys = Object.keys(params || {});
   if (paramKeys.length > 0) {
     const qs = new URLSearchParams(params).toString();
@@ -193,12 +218,10 @@ function buildCurlString({ method, url, params, headers, data }) {
   }
   cmd += `"`;
 
-  // Attach headers
   for (const [k, v] of Object.entries(headers || {})) {
     cmd += ` \\\n  -H "${k}: ${v}"`;
   }
 
-  // Attach body
   if (data !== undefined && data !== null) {
     const dataStr = typeof data === 'string' ? data : JSON.stringify(data);
     cmd += ` \\\n  -d '${dataStr.replace(/'/g, "'\\''")}'`;
@@ -217,4 +240,3 @@ function getStatusText(code) {
   };
   return map[code] || 'Unknown';
 }
-

@@ -23,11 +23,11 @@ app.get('/api/health', (req, res) => {
 // HTTP Request Execution
 app.post('/api/http/execute', async (req, res) => {
   try {
-    const { requestConfig, environment } = req.body;
+    const { requestConfig, environment, settings } = req.body;
     if (!requestConfig) {
       return res.status(400).json({ error: 'Missing requestConfig payload' });
     }
-    const result = await executeHttpRequest(requestConfig, environment || {});
+    const result = await executeHttpRequest(requestConfig, environment || {}, settings || {});
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });

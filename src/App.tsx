@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   fetchCollections,
   saveCollection,
@@ -8,7 +8,7 @@ import {
   deleteEnvironment,
   executeRequest,
 } from './services/api';
-import { CourierCollection, CourierRequest, Environment, HttpResponse, TestAssertion } from './types';
+import { CourierCollection, CourierRequest, CourierFolder, Environment, HttpResponse, TestAssertion, AppSettings } from './types';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { RequestTabs } from './components/RequestTabs';
@@ -18,6 +18,7 @@ import { CopilotDrawer } from './components/CopilotDrawer';
 import { CurlImportModal } from './components/CurlImportModal';
 import { EnvironmentModal } from './components/EnvironmentModal';
 import { SuiteRunnerModal } from './components/SuiteRunnerModal';
+import { SettingsModal } from './components/SettingsModal';
 
 export const App: React.FC = () => {
   // Collections & Requests state
@@ -34,11 +35,34 @@ export const App: React.FC = () => {
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [selectedEnvId, setSelectedEnvId] = useState<string>('');
 
+  // Settings state (persisted in localStorage)
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    const saved = localStorage.getItem('courier_app_settings');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return {
+      disableSslVerification: false,
+      autoSave: false,
+      defaultTimeoutMs: 30000,
+      layout: 'horizontal',
+    };
+  });
+
   // Modals & Drawers state
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [curlModalOpen, setCurlModalOpen] = useState(false);
   const [envModalOpen, setEnvModalOpen] = useState(false);
   const [suiteRunnerOpen, setSuiteRunnerOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+
+  // Debounced autosave ref
+  const autoSaveTimerRef = useRef<any>(null);
+
+  const updateSettings = (newSettings: AppSettings) => {
+    setSettings(newSettings);
+    localStorage.setItem('courier_app_settings', JSON.stringify(newSettings));
+  };
 
   // Initial Load
   useEffect(() => {
@@ -57,12 +81,17 @@ export const App: React.FC = () => {
       }
 
       // Open first request if available
-      if (cols.length > 0 && cols[0].requests.length > 0) {
+      if (cols.length > 0) {
         const firstCol = cols[0];
-        const firstReq = firstCol.requests[0];
-        setOpenTabs([{ collectionId: firstCol.id, request: firstReq }]);
-        setActiveRequestId(firstReq.id);
-        setActiveCollectionId(firstCol.id);
+        let firstReq = firstCol.requests?.[0];
+        if (!firstReq && firstCol.folders?.length) {
+          firstReq = firstCol.folders[0].requests?.[0];
+        }
+        if (firstReq) {
+          setOpenTabs([{ collectionId: firstCol.id, request: firstReq }]);
+          setActiveRequestId(firstReq.id);
+          setActiveCollectionId(firstCol.id);
+        }
       }
     } catch (err) {
       console.error('Failed to load initial Courier data:', err);
@@ -81,7 +110,7 @@ export const App: React.FC = () => {
     }
     setActiveRequestId(req.id);
     setActiveCollectionId(collectionId);
-    setCurrentResponse(null); // Reset response on request change
+    setCurrentResponse(null);
   };
 
   const handleCloseTab = (requestId: string) => {
@@ -98,30 +127,55 @@ export const App: React.FC = () => {
     }
   };
 
-  // Update in-memory request in tabs
+  // Update in-memory request in tabs + Auto-Save
   const handleUpdateRequest = (updatedReq: CourierRequest) => {
     setOpenTabs(prev =>
       prev.map(t =>
         t.request.id === updatedReq.id ? { ...t, request: updatedReq } : t
       )
     );
+
+    // Auto-save logic if enabled
+    if (settings.autoSave && activeCollectionId) {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = setTimeout(() => {
+        saveRequestDirectly(updatedReq, activeCollectionId);
+      }, 800);
+    }
   };
 
-  // Save changes to local collection file
-  const handleSaveRequest = async () => {
-    if (!activeRequest || !activeCollectionId) return;
-
-    const targetCol = collections.find(c => c.id === activeCollectionId);
+  const saveRequestDirectly = async (reqToSave: CourierRequest, colId: string) => {
+    const targetCol = collections.find(c => c.id === colId);
     if (!targetCol) return;
 
-    const updatedRequests = targetCol.requests.map(r =>
-      r.id === activeRequest.id ? activeRequest : r
-    );
+    let updatedRequests = targetCol.requests || [];
+    let updatedFolders = targetCol.folders || [];
+    let foundInDirect = updatedRequests.some(r => r.id === reqToSave.id);
 
-    const updatedCol = { ...targetCol, requests: updatedRequests };
+    if (foundInDirect) {
+      updatedRequests = updatedRequests.map(r => r.id === reqToSave.id ? reqToSave : r);
+    } else {
+      updatedFolders = updatedFolders.map(folder => ({
+        ...folder,
+        requests: (folder.requests || []).map(r => r.id === reqToSave.id ? reqToSave : r)
+      }));
+    }
+
+    const updatedCol = { ...targetCol, requests: updatedRequests, folders: updatedFolders };
     try {
       await saveCollection(updatedCol);
       setCollections(prev => prev.map(c => c.id === updatedCol.id ? updatedCol : c));
+    } catch (err: any) {
+      console.warn('Auto-save error:', err.message);
+    }
+  };
+
+  // Manual Save
+  const handleSaveRequest = async () => {
+    if (!activeRequest || !activeCollectionId) return;
+    try {
+      await saveRequestDirectly(activeRequest, activeCollectionId);
+      alert('Request saved successfully to disk!');
     } catch (err: any) {
       alert(`Failed to save: ${err.message}`);
     }
@@ -141,7 +195,7 @@ export const App: React.FC = () => {
     }
 
     try {
-      const response = await executeRequest(activeRequest, envVars);
+      const response = await executeRequest(activeRequest, envVars, settings);
       setCurrentResponse(response);
     } catch (err: any) {
       setCurrentResponse({
@@ -159,8 +213,8 @@ export const App: React.FC = () => {
     }
   };
 
-  // Collection actions
-  const handleCreateRequest = async (collectionId: string) => {
+  // Create Request (inside collection or subfolder)
+  const handleCreateRequest = async (collectionId: string, folderId?: string) => {
     const targetCol = collections.find(c => c.id === collectionId);
     if (!targetCol) return;
 
@@ -170,6 +224,7 @@ export const App: React.FC = () => {
       method: 'GET',
       url: 'https://httpbin.org/get',
       params: [],
+      pathParams: [],
       headers: [],
       auth: { type: 'none' },
       bodyType: 'none',
@@ -179,16 +234,53 @@ export const App: React.FC = () => {
       ],
     };
 
-    const updatedCol = {
-      ...targetCol,
-      requests: [...targetCol.requests, newReq],
-    };
+    let updatedCol: CourierCollection;
+    if (folderId) {
+      const updatedFolders = (targetCol.folders || []).map(f =>
+        f.id === folderId ? { ...f, requests: [...(f.requests || []), newReq] } : f
+      );
+      updatedCol = { ...targetCol, folders: updatedFolders };
+    } else {
+      updatedCol = { ...targetCol, requests: [...(targetCol.requests || []), newReq] };
+    }
 
     await saveCollection(updatedCol);
     setCollections(prev => prev.map(c => c.id === updatedCol.id ? updatedCol : c));
     handleSelectRequest(collectionId, newReq);
   };
 
+  // Duplicate / Clone Request
+  const handleDuplicateRequest = async (collectionId: string, requestToClone: CourierRequest) => {
+    const targetCol = collections.find(c => c.id === collectionId);
+    if (!targetCol) return;
+
+    const cloned: CourierRequest = {
+      ...JSON.parse(JSON.stringify(requestToClone)),
+      id: `req-${Date.now()}`,
+      name: `${requestToClone.name} (Copy)`,
+    };
+
+    let updatedCol: CourierCollection;
+    const inDirect = (targetCol.requests || []).some(r => r.id === requestToClone.id);
+
+    if (inDirect) {
+      updatedCol = { ...targetCol, requests: [...targetCol.requests, cloned] };
+    } else {
+      const updatedFolders = (targetCol.folders || []).map(folder => {
+        if ((folder.requests || []).some(r => r.id === requestToClone.id)) {
+          return { ...folder, requests: [...folder.requests, cloned] };
+        }
+        return folder;
+      });
+      updatedCol = { ...targetCol, folders: updatedFolders };
+    }
+
+    await saveCollection(updatedCol);
+    setCollections(prev => prev.map(c => c.id === updatedCol.id ? updatedCol : c));
+    handleSelectRequest(collectionId, cloned);
+  };
+
+  // Create Collection
   const handleCreateCollection = async () => {
     const name = prompt('Enter new collection name:');
     if (!name) return;
@@ -197,26 +289,85 @@ export const App: React.FC = () => {
       id: `col-${Date.now()}`,
       name,
       requests: [],
+      folders: [],
     };
 
     await saveCollection(newCol);
     setCollections(prev => [...prev, newCol]);
   };
 
+  // Duplicate / Clone Collection
+  const handleDuplicateCollection = async (collectionId: string) => {
+    const targetCol = collections.find(c => c.id === collectionId);
+    if (!targetCol) return;
+
+    const cloned: CourierCollection = {
+      ...JSON.parse(JSON.stringify(targetCol)),
+      id: `col-${Date.now()}`,
+      name: `${targetCol.name} (Copy)`,
+    };
+
+    await saveCollection(cloned);
+    setCollections(prev => [...prev, cloned]);
+  };
+
+  // Create Subfolder
+  const handleCreateFolder = async (collectionId: string) => {
+    const targetCol = collections.find(c => c.id === collectionId);
+    if (!targetCol) return;
+
+    const name = prompt('Enter folder name:');
+    if (!name) return;
+
+    const newFolder: CourierFolder = {
+      id: `folder-${Date.now()}`,
+      name,
+      requests: [],
+    };
+
+    const updatedCol = {
+      ...targetCol,
+      folders: [...(targetCol.folders || []), newFolder],
+    };
+
+    await saveCollection(updatedCol);
+    setCollections(prev => prev.map(c => c.id === updatedCol.id ? updatedCol : c));
+  };
+
+  // Delete Subfolder
+  const handleDeleteFolder = async (collectionId: string, folderId: string) => {
+    const targetCol = collections.find(c => c.id === collectionId);
+    if (!targetCol) return;
+
+    if (!confirm('Are you sure you want to delete this folder and its requests?')) return;
+
+    const updatedCol = {
+      ...targetCol,
+      folders: (targetCol.folders || []).filter(f => f.id !== folderId),
+    };
+
+    await saveCollection(updatedCol);
+    setCollections(prev => prev.map(c => c.id === updatedCol.id ? updatedCol : c));
+  };
+
+  // Delete Request
   const handleDeleteRequest = async (collectionId: string, requestId: string) => {
     const targetCol = collections.find(c => c.id === collectionId);
     if (!targetCol) return;
 
-    const updatedCol = {
-      ...targetCol,
-      requests: targetCol.requests.filter(r => r.id !== requestId),
-    };
+    const updatedRequests = (targetCol.requests || []).filter(r => r.id !== requestId);
+    const updatedFolders = (targetCol.folders || []).map(f => ({
+      ...f,
+      requests: (f.requests || []).filter(r => r.id !== requestId)
+    }));
 
+    const updatedCol = { ...targetCol, requests: updatedRequests, folders: updatedFolders };
     await saveCollection(updatedCol);
     setCollections(prev => prev.map(c => c.id === updatedCol.id ? updatedCol : c));
     handleCloseTab(requestId);
   };
 
+  // Delete Collection
   const handleDeleteCollection = async (collectionId: string) => {
     await deleteCollection(collectionId);
     setCollections(prev => prev.filter(c => c.id !== collectionId));
@@ -237,6 +388,7 @@ export const App: React.FC = () => {
       method: parsed.method || 'GET',
       url: parsed.url || '',
       params: parsed.params || [],
+      pathParams: [],
       headers: parsed.headers || [],
       auth: parsed.auth || { type: 'none' },
       bodyType: parsed.bodyType || 'none',
@@ -250,7 +402,7 @@ export const App: React.FC = () => {
     if (targetCol) {
       const updatedCol = {
         ...targetCol,
-        requests: [...targetCol.requests, newReq],
+        requests: [...(targetCol.requests || []), newReq],
       };
       saveCollection(updatedCol);
       setCollections(prev => prev.map(c => c.id === updatedCol.id ? updatedCol : c));
@@ -261,10 +413,7 @@ export const App: React.FC = () => {
   // Copilot Suggestions Handlers
   const handleApplyCopilotRequest = (requestPatch: Partial<CourierRequest>) => {
     if (!activeRequest) return;
-    const updated = {
-      ...activeRequest,
-      ...requestPatch,
-    };
+    const updated = { ...activeRequest, ...requestPatch };
     handleUpdateRequest(updated);
     setCopilotOpen(false);
   };
@@ -289,6 +438,12 @@ export const App: React.FC = () => {
         onOpenEnvModal={() => setEnvModalOpen(true)}
         onOpenCurlModal={() => setCurlModalOpen(true)}
         onOpenSuiteRunner={() => setSuiteRunnerOpen(true)}
+        onOpenSettingsModal={() => setSettingsModalOpen(true)}
+        layout={settings.layout}
+        onToggleLayout={() => updateSettings({
+          ...settings,
+          layout: settings.layout === 'horizontal' ? 'vertical' : 'horizontal',
+        })}
         copilotOpen={copilotOpen}
         onToggleCopilot={() => setCopilotOpen(!copilotOpen)}
       />
@@ -302,8 +457,12 @@ export const App: React.FC = () => {
           onSelectRequest={handleSelectRequest}
           onCreateRequest={handleCreateRequest}
           onCreateCollection={handleCreateCollection}
+          onDuplicateRequest={handleDuplicateRequest}
+          onDuplicateCollection={handleDuplicateCollection}
+          onCreateFolder={handleCreateFolder}
           onDeleteRequest={handleDeleteRequest}
           onDeleteCollection={handleDeleteCollection}
+          onDeleteFolder={handleDeleteFolder}
         />
 
         {/* Center Workspace (Tabs + Request + Response) */}
@@ -316,10 +475,17 @@ export const App: React.FC = () => {
             onCloseTab={handleCloseTab}
           />
 
-          {/* Workbench Grid: Left Request Composer, Right Response Inspector */}
+          {/* Workbench Grid: Side-by-Side vs Stacked Underneath */}
           {activeRequest ? (
-            <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-              <div className="flex-1 min-w-0 h-full overflow-hidden border-b md:border-b-0 md:border-r border-zinc-800">
+            <div className={`flex-1 flex overflow-hidden ${
+              settings.layout === 'vertical' ? 'flex-col' : 'flex-col md:flex-row'
+            }`}>
+              {/* Request Panel */}
+              <div className={`min-w-0 overflow-hidden ${
+                settings.layout === 'vertical'
+                  ? 'h-1/2 border-b border-zinc-800'
+                  : 'flex-1 h-full border-b md:border-b-0 md:border-r border-zinc-800'
+              }`}>
                 <RequestPanel
                   request={activeRequest}
                   isLoading={isLoadingRequest}
@@ -329,7 +495,12 @@ export const App: React.FC = () => {
                 />
               </div>
 
-              <div className="flex-1 min-w-0 h-full overflow-hidden">
+              {/* Response Panel */}
+              <div className={`min-w-0 overflow-hidden ${
+                settings.layout === 'vertical'
+                  ? 'h-1/2'
+                  : 'flex-1 h-full'
+              }`}>
                 <ResponsePanel
                   response={currentResponse}
                   isLoading={isLoadingRequest}
@@ -393,7 +564,14 @@ export const App: React.FC = () => {
         environments={environments}
         selectedEnvId={selectedEnvId}
       />
+
+      {/* Settings Modal (SSL Toggle, Autosave, Layout, Timeout) */}
+      <SettingsModal
+        isOpen={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
+        settings={settings}
+        onUpdateSettings={updateSettings}
+      />
     </div>
   );
 };
-

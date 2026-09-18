@@ -1,4 +1,4 @@
-import { CourierCollection, Environment, HttpResponse, CourierRequest, CopilotConfig } from '../types';
+import { CourierCollection, Environment, HttpResponse, CourierRequest, CopilotConfig, AppSettings } from '../types';
 
 const BASE_URL = '/api';
 
@@ -50,7 +50,8 @@ export async function deleteEnvironment(id: string): Promise<boolean> {
 
 export async function executeRequest(
   requestConfig: CourierRequest,
-  environmentVariables: Record<string, string>
+  environmentVariables: Record<string, string>,
+  settings?: Partial<AppSettings>
 ): Promise<HttpResponse> {
   const res = await fetch(`${BASE_URL}/http/execute`, {
     method: 'POST',
@@ -58,6 +59,7 @@ export async function executeRequest(
     body: JSON.stringify({
       requestConfig,
       environment: environmentVariables,
+      settings: settings || {},
     }),
   });
   if (!res.ok) {

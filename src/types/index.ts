@@ -53,6 +53,7 @@ export interface CourierRequest {
   method: HttpMethod;
   url: string;
   params: KeyValuePair[];
+  pathParams?: KeyValuePair[];
   headers: KeyValuePair[];
   auth: AuthConfig;
   bodyType: BodyType;
@@ -60,11 +61,26 @@ export interface CourierRequest {
   assertions: TestAssertion[];
 }
 
+export interface CourierFolder {
+  id: string;
+  name: string;
+  requests: CourierRequest[];
+  folders?: CourierFolder[];
+}
+
 export interface CourierCollection {
   id: string;
   name: string;
   description?: string;
   requests: CourierRequest[];
+  folders?: CourierFolder[];
+}
+
+export interface AppSettings {
+  disableSslVerification: boolean;
+  autoSave: boolean;
+  defaultTimeoutMs: number;
+  layout: 'horizontal' | 'vertical';
 }
 
 export interface EnvironmentVariable {
