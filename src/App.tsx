@@ -49,6 +49,44 @@ export const App: React.FC = () => {
     };
   });
 
+  // Sidebar resize state
+  const [sidebarWidth, setSidebarWidth] = useState<number>(280);
+  const sidebarResizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!sidebarResizeRef.current) return;
+
+      const nextWidth = sidebarResizeRef.current.startWidth + (event.clientX - sidebarResizeRef.current.startX);
+      setSidebarWidth(Math.min(520, Math.max(200, nextWidth)));
+    };
+
+    const handleMouseUp = () => {
+      if (sidebarResizeRef.current) {
+        sidebarResizeRef.current = null;
+        document.body.style.userSelect = '';
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
+    };
+  }, []);
+
+  const startSidebarResize = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    sidebarResizeRef.current = {
+      startX: event.clientX,
+      startWidth: sidebarWidth,
+    };
+    document.body.style.userSelect = 'none';
+  };
+
   // Modals & Drawers state
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [curlModalOpen, setCurlModalOpen] = useState(false);
@@ -454,6 +492,7 @@ export const App: React.FC = () => {
         <Sidebar
           collections={collections}
           activeRequestId={activeRequestId}
+          width={sidebarWidth}
           onSelectRequest={handleSelectRequest}
           onCreateRequest={handleCreateRequest}
           onCreateCollection={handleCreateCollection}
@@ -464,6 +503,15 @@ export const App: React.FC = () => {
           onDeleteCollection={handleDeleteCollection}
           onDeleteFolder={handleDeleteFolder}
         />
+
+        <div
+          className="relative w-[8px] cursor-col-resize bg-zinc-900/80 border-r border-zinc-800 hover:bg-emerald-500/20 active:bg-emerald-500/30"
+          onMouseDown={startSidebarResize}
+          aria-label="Resize sidebar"
+          title="Drag to resize sidebar"
+        >
+          <div className="absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 bg-zinc-700" />
+        </div>
 
         {/* Center Workspace (Tabs + Request + Response) */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">

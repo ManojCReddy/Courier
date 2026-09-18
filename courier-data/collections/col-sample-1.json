@@ -7,7 +7,7 @@
       "id": "req-1",
       "name": "Get Users List",
       "method": "GET",
-      "url": "{{baseUrl}}/users",
+      "url": "{{baseUrl}}/:users",
       "params": [
         {
           "key": "limit",
@@ -40,6 +40,13 @@
           "name": "Response time under 1500ms",
           "type": "RESPONSE_TIME_LESS_THAN",
           "expected": "1500",
+          "enabled": true
+        }
+      ],
+      "pathParams": [
+        {
+          "key": "users",
+          "value": "",
           "enabled": true
         }
       ]
@@ -117,5 +124,6 @@
         }
       ]
     }
-  ]
+  ],
+  "folders": []
 }

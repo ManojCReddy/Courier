@@ -16,6 +16,7 @@ import { CourierCollection, CourierRequest, CourierFolder, HttpMethod } from '..
 interface SidebarProps {
   collections: CourierCollection[];
   activeRequestId: string | null;
+  width?: number;
   onSelectRequest: (collectionId: string, request: CourierRequest) => void;
   onCreateRequest: (collectionId: string, folderId?: string) => void;
   onCreateCollection: () => void;
@@ -30,6 +31,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   collections,
   activeRequestId,
+  width = 280,
   onSelectRequest,
   onCreateRequest,
   onCreateCollection,
@@ -112,7 +114,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <aside className="w-64 border-r border-zinc-800 bg-[#0f0f12] flex flex-col h-[calc(100vh-3.5rem)] select-none">
+    <aside
+      style={{ width: `${width}px` }}
+      className="border-r border-zinc-800 bg-[#0f0f12] flex flex-col h-[calc(100vh-3.5rem)] select-none flex-shrink-0 relative transition-none"
+    >
       {/* Top Search & Actions */}
       <div className="p-3 border-b border-zinc-800/80 flex flex-col gap-2">
         <div className="flex items-center justify-between">

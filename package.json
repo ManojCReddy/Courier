@@ -2,7 +2,7 @@
   "name": "courier",
   "version": "0.1.0",
   "description": "Local-first, air-gapped, git-native API testing tool with AI Copilot",
-  "main": "server/index.js",
+  "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
@@ -10,6 +10,9 @@
     "dev:client": "vite",
     "build": "vite build",
     "start": "node server/index.js",
+    "electron": "electron .",
+    "dist": "npm run build && electron-builder --win portable",
+    "pack": "npm run build && electron-builder --win nsis",
     "cli": "node server/cli.js",
     "test": "node --test server/tests/*.test.js"
   },
@@ -36,6 +39,8 @@
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.1.2",
+    "electron": "^31.7.4",
+    "electron-builder": "^24.13.1",
     "lucide-react": "^0.475.0",
     "postcss": "^8.5.2",
     "react": "^18.3.1",
@@ -43,6 +48,26 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.3",
     "vite": "^6.1.0"
+  },
+  "build": {
+    "appId": "com.courier.app",
+    "productName": "Courier",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "server/**/*",
+      "courier-data/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ]
+    }
   }
 }
 

@@ -97,5 +97,30 @@ node server/cli.js run ./courier-data/collections/col-sample-1.json --env Develo
 
 ---
 
-## 🛡️ Enterprise Security & Privacy Guarantee
+## � Building a Windows Desktop App for End Users
+Courier is prepared for desktop packaging so your users do not need Node.js or npm installed.
+
+### Portable Windows app
+```bash
+npm install
+npm run build
+npm run dist
+```
+
+This creates a portable Windows executable in the `release/` folder.
+
+### Installer version
+```bash
+npm install
+npm run build
+npm run pack
+```
+
+This creates an NSIS installer `.exe` for standard enterprise distribution.
+
+> Users only run the generated desktop app. They do not need to install Node, run `npm install`, or use a terminal.
+
+---
+
+## �🛡️ Enterprise Security & Privacy Guarantee
 Courier is 100% telemetry-free. There are no tracking scripts, no third-party analytics, and no cloud logins. All network requests are executed directly from your local machine to your target APIs.
