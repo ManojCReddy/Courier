@@ -1,0 +1,48 @@
+{
+  "name": "courier",
+  "version": "0.1.0",
+  "description": "Local-first, air-gapped, git-native API testing tool with AI Copilot",
+  "main": "server/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "node server/index.js",
+    "dev:client": "vite",
+    "build": "vite build",
+    "start": "node server/index.js",
+    "cli": "node server/cli.js",
+    "test": "node --test server/tests/*.test.js"
+  },
+  "keywords": [
+    "api-client",
+    "postman-alternative",
+    "bruno-alternative",
+    "offline-first",
+    "local-first",
+    "ai-copilot",
+    "test-runner"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.9",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.2",
+    "lucide-react": "^0.475.0",
+    "postcss": "^8.5.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0"
+  }
+}
+

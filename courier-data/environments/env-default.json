@@ -1,0 +1,24 @@
+{
+  "id": "env-default",
+  "name": "Development",
+  "variables": [
+    {
+      "key": "baseUrl",
+      "value": "https://jsonplaceholder.typicode.com",
+      "enabled": true,
+      "isSecret": false
+    },
+    {
+      "key": "apiKey",
+      "value": "secret_dev_key_123",
+      "enabled": true,
+      "isSecret": true
+    },
+    {
+      "key": "userId",
+      "value": "1",
+      "enabled": true,
+      "isSecret": false
+    }
+  ]
+}
