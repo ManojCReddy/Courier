@@ -11,8 +11,9 @@
     "build": "vite build",
     "start": "node server/index.js",
     "electron": "electron .",
-    "dist": "npm run build && electron-builder --win portable",
-    "pack": "npm run build && electron-builder --win nsis",
+    "dist": "npm run build && electron-builder --win portable --config.win.sign=false --config.win.signAndEditExecutable=false",
+    "dist:zip": "npm run build && electron-builder --win zip --config.win.sign=false --config.win.signAndEditExecutable=false",
+    "pack": "npm run build && electron-builder --win nsis --config.win.sign=false --config.win.signAndEditExecutable=false",
     "cli": "node server/cli.js",
     "test": "node --test server/tests/*.test.js"
   },
@@ -65,8 +66,11 @@
     "win": {
       "target": [
         "portable",
+        "zip",
         "nsis"
-      ]
+      ],
+      "sign": false,
+      "signAndEditExecutable": false
     }
   }
 }

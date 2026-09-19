@@ -67,10 +67,14 @@ node server/cli.js run ./courier-data/collections/col-sample-1.json --env Develo
 ### Prerequisites
 - Node.js v18+ (Node.js v22 LTS portable is configured in your user space).
 
-### Installation
+### Setup
 ```bash
+git clone <your-repo-url>
+cd Courier
 npm install
 ```
+
+If you are on a Windows machine and want to build a desktop package, it is helpful to run PowerShell or a terminal as an administrator so signing-related steps can complete without policy or symlink issues.
 
 ### Running the Full-Stack Application
 To start both the local API proxy (port 4174) and the Vite frontend (port 5173):
@@ -89,6 +93,27 @@ Open **`http://localhost:4174`** in your browser.
 ```bash
 npm test
 ```
+
+### Packaging for Windows
+```bash
+npm run build
+npm run dist
+```
+This creates a portable Windows executable in [release](release).
+
+```bash
+npm run build
+npm run dist:zip
+```
+This creates a ZIP archive of the packaged Windows app in [release](release).
+
+```bash
+npm run build
+npm run pack
+```
+This creates an NSIS installer `.exe` for standard installation flows.
+
+> Generated packaging files such as the EXE and ZIP are stored in [release](release) and are intentionally not tracked by Git because the project ignores that folder via [.gitignore](.gitignore). This is normal for build artifacts.
 
 ### Running CI/CD Suite Runner
 ```bash
