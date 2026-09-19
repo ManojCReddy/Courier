@@ -1,6 +1,6 @@
 {
   "name": "courier",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local-first, air-gapped, git-native API testing tool with AI Copilot",
   "main": "electron/main.cjs",
   "type": "module",
@@ -11,9 +11,9 @@
     "build": "vite build",
     "start": "node server/index.js",
     "electron": "electron .",
-    "dist": "npm run build && electron-builder --win portable --config.win.sign=false --config.win.signAndEditExecutable=false",
-    "dist:zip": "npm run build && electron-builder --win zip --config.win.sign=false --config.win.signAndEditExecutable=false",
-    "pack": "npm run build && electron-builder --win nsis --config.win.sign=false --config.win.signAndEditExecutable=false",
+    "dist": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$env:CSC_IDENTITY_AUTO_DISCOVERY='false'; npm run build; electron-builder --win portable\"",
+    "dist:zip": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$env:CSC_IDENTITY_AUTO_DISCOVERY='false'; npm run build; electron-builder --win zip\"",
+    "pack": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$env:CSC_IDENTITY_AUTO_DISCOVERY='false'; npm run build; electron-builder --win nsis\"",
     "cli": "node server/cli.js",
     "test": "node --test server/tests/*.test.js"
   },
@@ -53,6 +53,7 @@
   "build": {
     "appId": "com.courier.app",
     "productName": "Courier",
+    "forceCodeSigning": false,
     "directories": {
       "output": "release"
     },
@@ -61,13 +62,13 @@
       "server/**/*",
       "courier-data/**/*",
       "electron/**/*",
+      "assets/**/*",
       "package.json"
     ],
     "win": {
+      "icon": "assets/courier-icon.ico",
       "target": [
-        "portable",
-        "zip",
-        "nsis"
+        "portable"
       ],
       "sign": false,
       "signAndEditExecutable": false

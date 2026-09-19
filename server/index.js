@@ -1,23 +1,36 @@
 import express from 'express';
 import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { initStorage, getCollections, saveCollection, deleteCollection, getEnvironments, saveEnvironment, deleteEnvironment } from './services/storageService.js';
 import { executeHttpRequest } from './services/httpExecutor.js';
 import { parseCurl } from './services/curlParser.js';
 import { processCopilotChat } from './services/copilotService.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 4174;
+const distPath = path.resolve(__dirname, '../dist');
 
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '20mb' }));
+
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  app.get(/^(?!\/api).*$/, (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
 
 // Initialize local filesystem storage
 initStorage();
 
 // Health Check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', name: 'Courier Local API Server', version: '0.1.0' });
+  res.json({ status: 'ok', name: 'Courier Local API Server', version: '0.1.1' });
 });
 
 // HTTP Request Execution
