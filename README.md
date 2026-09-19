@@ -3,7 +3,7 @@
 
 > **Enterprise-Ready, 100% Air-Gapped & Telemetry-Free Postman/Bruno Alternative**
 
-Postman's mandatory cloud sync, account requirements, and deprecation of the offline scratchpad created severe security and compliance liabilities for developers, healthcare systems, defense contractors, and fintechs.
+Postman and Bruno's mandatory cloud sync, account requirements, and deprecation of the offline scratchpad created severe security and compliance liabilities for developers, healthcare systems, defense contractors, and fintechs.
 
 **Courier** is built from the ground up for developers who demand complete data privacy, lightning-fast execution, and seamless Git-native version control — combined with a next-generation **AI Copilot** supporting **Google AI (Gemini)** and **Local Ollama** (100% offline).
 
