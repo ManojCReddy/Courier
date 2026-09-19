@@ -53,19 +53,42 @@ export const App: React.FC = () => {
   const [sidebarWidth, setSidebarWidth] = useState<number>(280);
   const sidebarResizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
+  // Request/response workspace divider state
+  const [requestPaneSize, setRequestPaneSize] = useState<number>(520);
+  const requestPaneResizeRef = useRef<{ startX: number; startSize: number } | null>(null);
+  const requestPaneResizeYRef = useRef<{ startY: number; startSize: number } | null>(null);
+
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
-      if (!sidebarResizeRef.current) return;
+      if (!sidebarResizeRef.current && !requestPaneResizeRef.current && !requestPaneResizeYRef.current) return;
 
-      const nextWidth = sidebarResizeRef.current.startWidth + (event.clientX - sidebarResizeRef.current.startX);
-      setSidebarWidth(Math.min(520, Math.max(200, nextWidth)));
+      if (sidebarResizeRef.current) {
+        const nextWidth = sidebarResizeRef.current.startWidth + (event.clientX - sidebarResizeRef.current.startX);
+        setSidebarWidth(Math.min(520, Math.max(200, nextWidth)));
+      }
+
+      if (requestPaneResizeRef.current) {
+        const nextWidth = requestPaneResizeRef.current.startSize + (event.clientX - requestPaneResizeRef.current.startX);
+        setRequestPaneSize(Math.min(900, Math.max(300, nextWidth)));
+      }
+
+      if (requestPaneResizeYRef.current) {
+        const nextHeight = requestPaneResizeYRef.current.startSize + (event.clientY - requestPaneResizeYRef.current.startY);
+        setRequestPaneSize(Math.min(900, Math.max(260, nextHeight)));
+      }
     };
 
     const handleMouseUp = () => {
       if (sidebarResizeRef.current) {
         sidebarResizeRef.current = null;
-        document.body.style.userSelect = '';
       }
+      if (requestPaneResizeRef.current) {
+        requestPaneResizeRef.current = null;
+      }
+      if (requestPaneResizeYRef.current) {
+        requestPaneResizeYRef.current = null;
+      }
+      document.body.style.userSelect = '';
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -84,6 +107,22 @@ export const App: React.FC = () => {
       startX: event.clientX,
       startWidth: sidebarWidth,
     };
+    document.body.style.userSelect = 'none';
+  };
+
+  const startRequestPaneResize = (event: React.MouseEvent<HTMLDivElement>, mode: 'horizontal' | 'vertical') => {
+    event.preventDefault();
+    if (mode === 'horizontal') {
+      requestPaneResizeRef.current = {
+        startX: event.clientX,
+        startSize: requestPaneSize,
+      };
+    } else {
+      requestPaneResizeYRef.current = {
+        startY: event.clientY,
+        startSize: requestPaneSize,
+      };
+    }
     document.body.style.userSelect = 'none';
   };
 
@@ -487,7 +526,7 @@ export const App: React.FC = () => {
       />
 
       {/* Main Workbench Area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left Collections Sidebar */}
         <Sidebar
           collections={collections}
@@ -505,13 +544,11 @@ export const App: React.FC = () => {
         />
 
         <div
-          className="relative w-[8px] cursor-col-resize bg-zinc-900/80 border-r border-zinc-800 hover:bg-emerald-500/20 active:bg-emerald-500/30"
+          className="relative w-px cursor-col-resize bg-zinc-700/80 hover:bg-zinc-500/90"
           onMouseDown={startSidebarResize}
           aria-label="Resize sidebar"
           title="Drag to resize sidebar"
-        >
-          <div className="absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 bg-zinc-700" />
-        </div>
+        />
 
         {/* Center Workspace (Tabs + Request + Response) */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -529,11 +566,16 @@ export const App: React.FC = () => {
               settings.layout === 'vertical' ? 'flex-col' : 'flex-col md:flex-row'
             }`}>
               {/* Request Panel */}
-              <div className={`min-w-0 overflow-hidden ${
-                settings.layout === 'vertical'
-                  ? 'h-1/2 border-b border-zinc-800'
-                  : 'flex-1 h-full border-b md:border-b-0 md:border-r border-zinc-800'
-              }`}>
+              <div
+                className={`min-w-0 overflow-hidden ${
+                  settings.layout === 'vertical'
+                    ? 'border-b border-zinc-800'
+                    : 'border-b md:border-b-0 md:border-r border-zinc-800'
+                }`}
+                style={settings.layout === 'vertical'
+                  ? { height: `${requestPaneSize}px` }
+                  : { width: `${requestPaneSize}px`, minWidth: '300px' }}
+              >
                 <RequestPanel
                   request={activeRequest}
                   isLoading={isLoadingRequest}
@@ -543,11 +585,16 @@ export const App: React.FC = () => {
                 />
               </div>
 
+              <div
+                className={`relative ${settings.layout === 'vertical' ? 'h-px cursor-row-resize bg-zinc-700/80 hover:bg-zinc-500/90' : 'w-px cursor-col-resize bg-zinc-700/80 hover:bg-zinc-500/90'}`}
+                onMouseDown={(event) => startRequestPaneResize(event, settings.layout === 'vertical' ? 'vertical' : 'horizontal')}
+                aria-label="Resize request and response area"
+                title="Drag to resize"
+              />
+
               {/* Response Panel */}
               <div className={`min-w-0 overflow-hidden ${
-                settings.layout === 'vertical'
-                  ? 'h-1/2'
-                  : 'flex-1 h-full'
+                settings.layout === 'vertical' ? 'flex-1' : 'flex-1 h-full'
               }`}>
                 <ResponsePanel
                   response={currentResponse}
