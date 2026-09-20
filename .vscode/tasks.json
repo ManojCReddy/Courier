@@ -1,0 +1,165 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build Courier EXE",
+			"type": "shell",
+			"command": "npm.cmd run dist",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Check icon tooling",
+			"type": "shell",
+			"command": "cmd /c \"python -c \\\"import PIL; print(PIL.__version__)\\\"\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Check SVG conversion support",
+			"type": "shell",
+			"command": "python -c \"import importlib.util; print('cairosvg', importlib.util.find_spec('cairosvg') is not None); print('PIL', importlib.util.find_spec('PIL') is not None)\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Install SVG icon renderer",
+			"type": "shell",
+			"command": "cmd /c \"\\\"C:\\Users\\reddy\\Documents\\Courier\\.venv\\Scripts\\python.exe\\\" -m pip install cairosvg\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Generate final ICO",
+			"type": "shell",
+			"command": "cmd /c \"\\\"C:\\Users\\reddy\\Documents\\Courier\\.venv\\Scripts\\python.exe\\\" - <<'PY'\nimport cairosvg\nfrom pathlib import Path\nsvg_path = Path(r'C:\\Users\\reddy\\Documents\\Courier\\assets\\courier-mark.svg')\nout = Path(r'C:\\Users\\reddy\\Documents\\Courier\\assets\\courier-icon.ico')\nfor size in [16, 24, 32, 48, 64, 128, 256]:\n    cairosvg.svg2png(url=str(svg_path), write_to=str(out.with_name(f'courier-icon-{size}.png')), output_width=size, output_height=size)\nprint('generated')\nPY\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Regenerate final icon assets",
+			"type": "shell",
+			"command": "cmd /c \"\"C:\\Users\\reddy\\Documents\\Courier\\.venv\\Scripts\\python.exe\" -c \"import cairosvg; from pathlib import Path; svg_path = Path(r'C:\\Users\\reddy\\Documents\\Courier\\assets\\courier-mark.svg'); out_dir = Path(r'C:\\Users\\reddy\\Documents\\Courier\\assets'); sizes = [16,24,32,48,64,128,256]; [cairosvg.svg2png(url=str(svg_path), write_to=str(out_dir / f'courier-icon-{size}.png'), output_width=size, output_height=size) for size in sizes]; print('pngs generated')\" && \"C:\\Users\\reddy\\Documents\\Courier\\.venv\\Scripts\\python.exe\" -c \"from PIL import Image; from pathlib import Path; out_dir = Path(r'C:\\Users\\reddy\\Documents\\Courier\\assets'); imgs = [Image.open(str(out_dir / f'courier-icon-{size}.png')).convert('RGBA') for size in [16,24,32,48,64,128,256]]; out = out_dir / 'courier-icon.ico'; out.write_bytes(b''); img = imgs[0]; img.save(out, format='ICO', sizes=[(i.size[0], i.size[1]) for i in imgs]); print('ico generated')\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Generate final app icon",
+			"type": "shell",
+			"command": "cmd /c \"\"C:\\Users\\reddy\\Documents\\Courier\\.venv\\Scripts\\python.exe\" \"C:\\Users\\reddy\\Documents\\Courier\\scripts\\generate_app_icon.py\"\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Install GTK Cairo runtime",
+			"type": "shell",
+			"command": "cmd /c \"choco install cairo -y\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Generate taskbar app icon",
+			"type": "shell",
+			"command": "cmd /c \"\"C:\\Users\\reddy\\Documents\\Courier\\.venv\\Scripts\\python.exe\" \"C:\\Users\\reddy\\Documents\\Courier\\scripts\\generate_app_icon_pillow.py\"\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Rebuild Courier EXE with final icon",
+			"type": "shell",
+			"command": "cmd /c \"cd /d C:\\Users\\reddy\\Documents\\Courier && npm.cmd run dist\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Build final Courier EXE",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Set-Location 'C:\\Users\\reddy\\Documents\\Courier'; npm.cmd run dist\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Generate valid 256x256 Windows icon",
+			"type": "shell",
+			"command": "cmd /c \"\"C:\\Users\\reddy\\Documents\\Courier\\.venv\\Scripts\\python.exe\" \"C:\\Users\\reddy\\Documents\\Courier\\scripts\\generate_app_icon_pillow.py\"\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Build Courier EXE with correct icon",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Set-Location 'C:\\Users\\reddy\\Documents\\Courier'; npm.cmd run dist\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Regenerate and rebuild Courier icon and EXE",
+			"type": "shell",
+			"command": "cmd /c \"\"C:\\Users\\reddy\\Documents\\Courier\\.venv\\Scripts\\python.exe\" \"C:\\Users\\reddy\\Documents\\Courier\\scripts\\generate_app_icon_pillow.py\" && powershell -NoProfile -ExecutionPolicy Bypass -Command \"Set-Location 'C:\\Users\\reddy\\Documents\\Courier'; npm.cmd run dist\"\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Generate Courier EXE in release root",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Set-Location 'C:\\Users\\reddy\\Documents\\Courier'; & '.\\.venv\\Scripts\\python.exe' '.\\scripts\\generate_app_icon_pillow.py'; npm.cmd run dist; Copy-Item '.\\release\\win-unpacked\\Courier.exe' '.\\release\\Courier.exe' -Force; Get-ChildItem '.\\release' | Select-Object Name,Length,Mode\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Regenerate Courier portable app",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Set-Location 'C:\\Users\\reddy\\Documents\\Courier'; npm.cmd run dist; Get-ChildItem '.\\release' | Select-Object Name,Length,Mode\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Generate final Courier EXE with valid icon",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Set-Location 'C:\\Users\\reddy\\Documents\\Courier'; & '.\\.venv\\Scripts\\python.exe' '.\\scripts\\generate_app_icon_pillow.py'; npm.cmd run dist; Get-ChildItem '.\\release' | Select-Object Name,Length,Mode\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Build Courier EXE with 256x256 icon",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Set-Location 'C:\\Users\\reddy\\Documents\\Courier'; & '.\\.venv\\Scripts\\python.exe' '.\\scripts\\generate_app_icon_pillow.py'; npm.cmd run dist; Get-ChildItem '.\\release' | Select-Object Name,Length,Mode\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Check git repo status and remote",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Set-Location 'C:\\Users\\reddy\\Documents\\Courier'; git status --short --branch; Write-Host '---'; git remote -v\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Commit and push Courier MVP to GitHub",
+			"type": "shell",
+			"command": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Set-Location 'C:\\Users\\reddy\\Documents\\Courier'; git config user.name 'Courier Dev'; git config user.email 'courier.dev@example.com'; git add .; git commit -m 'Initial Courier MVP'; git push origin master\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

@@ -1,5 +1,4 @@
-const { app, BrowserWindow, Menu } = require('electron');
-const { spawn } = require('child_process');
+const { app, BrowserWindow, Menu, ipcMain } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -31,6 +30,15 @@ async function waitForBackend() {
 }
 
 async function startBackend() {
+  try {
+    const response = await fetch('http://localhost:4174/api/health');
+    if (response.ok) {
+      return;
+    }
+  } catch (error) {
+    // No backend is currently running; start the local Courier server.
+  }
+
   const rootDir = app.getAppPath();
   const serverScript = path.join(rootDir, 'server', 'index.js');
 
@@ -49,17 +57,36 @@ function createWindow() {
     height: 1000,
     minWidth: 1100,
     minHeight: 700,
+    frame: false,
     backgroundColor: '#0c0c0e',
     title: 'Courier - Local-First API Workbench & Test Suite',
     icon: appIcon,
     show: false,
     autoHideMenuBar: true,
-    titleBarStyle: 'hiddenInset',
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
       preload: path.join(__dirname, 'preload.js')
     }
+  });
+
+  mainWindow.setIcon(appIcon);
+
+  ipcMain.on('window:minimize', () => {
+    if (mainWindow) mainWindow.minimize();
+  });
+
+  ipcMain.on('window:maximize', () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize();
+    } else {
+      mainWindow.maximize();
+    }
+  });
+
+  ipcMain.on('window:close', () => {
+    if (mainWindow) mainWindow.close();
   });
 
   mainWindow.loadURL('http://localhost:4174');

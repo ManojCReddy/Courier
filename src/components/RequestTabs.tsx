@@ -29,18 +29,26 @@ export const RequestTabs: React.FC<RequestTabsProps> = ({
   };
 
   return (
-    <div className="flex items-center bg-[#101014] border-b border-zinc-800 overflow-x-auto select-none">
+    <div
+      className="flex items-center border-b overflow-x-auto select-none"
+      style={{ background: 'var(--app-surface)', borderColor: 'var(--app-border)' }}
+    >
       {openRequests.map(({ request }) => {
         const isActive = activeRequestId === request.id;
         return (
           <div
             key={request.id}
             onClick={() => onSelectTab(request.id)}
-            className={`group flex items-center gap-2 px-3 py-2 border-r border-zinc-800 text-xs cursor-pointer border-t-2 transition-colors min-w-[130px] max-w-[220px] ${
+            className={`group flex items-center gap-2 px-3 py-2 border-r text-xs cursor-pointer border-t-2 transition-colors min-w-[130px] max-w-[220px] ${
               isActive
-                ? 'bg-[#18181d] text-zinc-100 border-t-emerald-500 font-medium'
-                : 'bg-[#101014] text-zinc-400 border-t-transparent hover:bg-zinc-850 hover:text-zinc-200'
+                ? 'text-zinc-100 border-t-emerald-500 font-medium'
+                : 'text-zinc-400 border-t-transparent hover:text-zinc-200'
             }`}
+            style={{
+              background: isActive ? 'var(--app-surface-strong)' : 'var(--app-surface)',
+              borderRightColor: 'var(--app-border)',
+              color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
+            }}
           >
             <span className={`text-[10px] font-mono font-bold ${getMethodColor(request.method)}`}>
               {request.method}

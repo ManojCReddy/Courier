@@ -126,8 +126,16 @@ app.post('/api/copilot/chat', async (req, res) => {
 });
 
 // Start Server
-app.listen(PORT, () => {
-  console.log(`[Courier Core Engine] Local server running on http://localhost:${PORT}`);
-  console.log(`[Courier Core Engine] Storage initialized in ./courier-data/`);
-});
+try {
+  app.listen(PORT, () => {
+    console.log(`[Courier Core Engine] Local server running on http://localhost:${PORT}`);
+    console.log(`[Courier Core Engine] Storage initialized in ./courier-data/`);
+  });
+} catch (error) {
+  if (error && error.code === 'EADDRINUSE') {
+    console.warn(`[Courier Core Engine] Port ${PORT} is already in use. Reusing the running local server.`);
+  } else {
+    throw error;
+  }
+}
 

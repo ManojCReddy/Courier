@@ -2,15 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --app-bg: #0c0c0e;
+  --app-surface: #121215;
+  --app-surface-strong: #15151a;
+  --app-surface-soft: #1b1b20;
+  --app-border: rgba(255, 255, 255, 0.08);
+  --text-primary: #e4e4e7;
+  --text-muted: #a1a1aa;
+  --text-soft: #71717a;
+  --brand: #34d399;
+  --brand-soft: rgba(52, 211, 153, 0.12);
+}
+
+html[data-theme='dark'] {
+  --app-bg: #0c0c0e;
+  --app-surface: #121215;
+  --app-surface-strong: #15151a;
+  --app-surface-soft: #1b1b20;
+  --app-border: rgba(255, 255, 255, 0.08);
+  --text-primary: #e4e4e7;
+  --text-muted: #a1a1aa;
+  --text-soft: #71717a;
+  --brand: #34d399;
+  --brand-soft: rgba(52, 211, 153, 0.12);
+  color-scheme: dark;
+}
+
 @layer base {
-  body {
-    background-color: #0c0c0e;
-    color: #e4e4e7;
+  html, body, #root {
+    background-color: var(--app-bg);
+    color: var(--text-primary);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  body {
+    background-color: var(--app-bg);
+    color: var(--text-primary);
   }
 }
 
-/* Custom scrollbars for clean IDE feel */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

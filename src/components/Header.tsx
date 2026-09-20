@@ -1,5 +1,6 @@
 import React from 'react';
-import { Play, Sparkles, Sliders, Terminal, Globe, Plus, ShieldCheck, Settings, Columns, Rows } from 'lucide-react';
+import { Play, Sparkles, Sliders, Globe, ShieldCheck, Settings, Columns, Rows, Minus, Square, X } from 'lucide-react';
+import airplaneLogo from '../../assets/courier-mark.svg';
 import { Environment, AppSettings } from '../types';
 
 interface HeaderProps {
@@ -29,19 +30,23 @@ export const Header: React.FC<HeaderProps> = ({
   copilotOpen,
   onToggleCopilot,
 }) => {
+  const handleWindowAction = (action: 'minimize' | 'maximize' | 'close') => {
+    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+      (window as any).electronAPI[action]();
+    }
+  };
+
   return (
     <header className="h-14 border-b border-zinc-800 bg-[#121215] px-4 flex items-center justify-between select-none">
       {/* Brand & Air-Gapped Badge */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-lg shadow-inner">
-            <svg className="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="22 2 15 22 11 13 2 9 22 2" />
-            </svg>
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-[#0b1213] border border-emerald-500/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] flex items-center justify-center overflow-hidden">
+            <img src={airplaneLogo} alt="Courier logo" className="w-6 h-6 object-cover" />
           </div>
-          <span className="font-bold tracking-wider text-base text-zinc-100 flex items-center gap-1.5">
+          <span className="font-black tracking-[0.18em] text-[15px] text-zinc-100 flex items-center gap-1.5">
             COURIER
-            <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">v0.1</span>
+            <span className="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">v0.1</span>
           </span>
         </div>
 
@@ -81,15 +86,6 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Right Actions */}
       <div className="flex items-center gap-2">
         <button
-          onClick={onOpenCurlModal}
-          className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/80 transition-colors"
-          title="Import raw cURL command"
-        >
-          <Terminal className="w-3.5 h-3.5 text-zinc-400" />
-          <span>Import cURL</span>
-        </button>
-
-        <button
           onClick={onOpenSuiteRunner}
           className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-emerald-400 border border-emerald-900/60 transition-colors"
           title="Run collection test suite"
@@ -115,6 +111,33 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         <div className="h-4 w-[1px] bg-zinc-800 mx-1" />
+
+        <div className="flex items-center gap-1.5 ml-1">
+          <button
+            onClick={() => handleWindowAction('minimize')}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
+            title="Minimize"
+            aria-label="Minimize"
+          >
+            <Minus className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => handleWindowAction('maximize')}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
+            title="Maximize"
+            aria-label="Maximize"
+          >
+            <Square className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => handleWindowAction('close')}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-300 hover:bg-red-500/20 hover:text-red-300 transition-colors"
+            title="Close"
+            aria-label="Close"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
 
         {/* Courier Copilot Toggle Button */}
         <button

@@ -506,7 +506,11 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#0c0c0e] text-zinc-200">
+    <div
+      className="flex flex-col h-screen w-screen overflow-hidden bg-[#0c0c0e] text-zinc-200"
+      data-theme="dark"
+      style={{ backgroundColor: 'var(--app-bg)', color: 'var(--text-primary)' }}
+    >
       {/* Top Header */}
       <Header
         environments={environments}

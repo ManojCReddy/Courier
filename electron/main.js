@@ -9,7 +9,7 @@ app.setAppUserModelId('com.courier.app');
 app.setPath('userData', path.join(app.getPath('appData'), 'Courier'));
 app.setPath('sessionData', path.join(app.getPath('appData'), 'Courier', 'Sessions'));
 
-const appIcon = path.join(__dirname, '..', 'assets', 'courier-icon.ico');
+const appIcon = path.join(__dirname, '..', 'assets', 'courier-icon.png');
 const resolvedAppIcon = fs.existsSync(appIcon) ? appIcon : undefined;
 
 let mainWindow;

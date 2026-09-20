@@ -1,3 +1,7 @@
-window.addEventListener('DOMContentLoaded', () => {
-  // Keep the preload minimal; no Node access is exposed to the renderer.
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('electronAPI', {
+  minimize: () => ipcRenderer.send('window:minimize'),
+  maximize: () => ipcRenderer.send('window:maximize'),
+  close: () => ipcRenderer.send('window:close')
 });

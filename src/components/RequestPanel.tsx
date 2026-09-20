@@ -157,24 +157,32 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#141418] select-none">
+    <div
+      className="flex flex-col h-full select-none"
+      style={{ background: 'var(--app-surface)', color: 'var(--text-primary)' }}
+    >
       {/* Top Request Bar: Name, Save */}
-      <div className="px-4 py-2 flex items-center justify-between border-b border-zinc-800">
+      <div
+        className="px-4 py-2 flex items-center justify-between border-b"
+        style={{ borderColor: 'var(--app-border)' }}
+      >
         <input
           type="text"
           value={request.name}
           onChange={(e) => updateField('name', e.target.value)}
           placeholder="Request Name"
-          className="bg-transparent font-medium text-sm text-zinc-200 focus:outline-none border-b border-transparent focus:border-emerald-500 transition-colors w-1/3"
+          className="bg-transparent font-medium text-sm focus:outline-none border-b border-transparent focus:border-emerald-500 transition-colors w-1/3"
+          style={{ color: 'var(--text-primary)' }}
         />
 
         <div className="flex items-center gap-2">
           <button
             onClick={onSaveRequest}
-            className="flex items-center gap-1.5 px-3 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium border border-zinc-700 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium border transition-colors"
+            style={{ background: 'var(--app-surface-soft)', borderColor: 'var(--app-border)', color: 'var(--text-primary)' }}
             title="Save request changes to local file"
           >
-            <Save className="w-3.5 h-3.5 text-zinc-400" />
+            <Save className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
             <span>Save</span>
           </button>
         </div>
@@ -186,7 +194,8 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
         <select
           value={request.method}
           onChange={handleMethodChange}
-          className="bg-zinc-900 border border-zinc-700 text-xs font-bold font-mono px-3 py-2 rounded-lg text-emerald-400 focus:outline-none focus:border-emerald-500 cursor-pointer"
+          className="text-xs font-bold font-mono px-3 py-2 rounded-lg focus:outline-none focus:border-emerald-500 cursor-pointer"
+          style={{ background: 'var(--app-surface-soft)', border: '1px solid var(--app-border)', color: 'var(--brand)' }}
         >
           <option value="GET">GET</option>
           <option value="POST">POST</option>
@@ -209,7 +218,8 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
               }
             }}
             placeholder="https://api.example.com/v1/resource or {{baseUrl}}/resource"
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs font-mono text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors"
+            className="w-full rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-emerald-500 transition-colors"
+            style={{ background: 'var(--app-surface-soft)', border: '1px solid var(--app-border)', color: 'var(--text-primary)', placeholder: 'var(--text-soft)' }}
           />
         </div>
 
