@@ -128,7 +128,7 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
             <button
               onClick={onDiagnoseWithCopilot}
               className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 border border-amber-800/80 transition-colors"
-              title="Diagnose error with Courier Copilot"
+              title="Diagnose error with Chetan"
             >
               <Stethoscope className="w-3.5 h-3.5 text-amber-400" />
               <span>Diagnose Error</span>

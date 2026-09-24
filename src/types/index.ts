@@ -59,6 +59,8 @@ export interface CourierRequest {
   bodyType: BodyType;
   body: string;
   assertions: TestAssertion[];
+  /** Optional post-response script (JS). Runs after every successful send. */
+  script?: string;
 }
 
 export interface CourierFolder {

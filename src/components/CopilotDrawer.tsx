@@ -12,14 +12,22 @@ import {
   Stethoscope,
   Terminal,
   Server,
-  Zap
+  Zap,
+  Minimize2,
+  Maximize2,
+  ChevronRight,
 } from 'lucide-react';
 import { CopilotMessage, CopilotConfig, CourierRequest, HttpResponse, TestAssertion } from '../types';
 import { callCopilot } from '../services/api';
 
+type PanelMode = 'closed' | 'minimized' | 'normal' | 'maximized';
+
 interface CopilotDrawerProps {
   isOpen: boolean;
+  panelMode: PanelMode;
   onClose: () => void;
+  onMinimize: () => void;
+  onMaximize: () => void;
   currentRequest: CourierRequest | null;
   currentResponse: HttpResponse | null;
   onApplyRequest: (requestPatch: Partial<CourierRequest>) => void;
@@ -28,7 +36,10 @@ interface CopilotDrawerProps {
 
 export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
   isOpen,
+  panelMode,
   onClose,
+  onMinimize,
+  onMaximize,
   currentRequest,
   currentResponse,
   onApplyRequest,
@@ -38,7 +49,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
     {
       id: 'welcome',
       role: 'assistant',
-      content: `👋 **Welcome to Courier Copilot!**
+      content: `👋 **Welcome to Chetan!**
 
 I am your local-first AI assistant for API development and testing.
 
@@ -50,7 +61,7 @@ I am your local-first AI assistant for API development and testing.
 
 *Enterprise Security Note*: Connect me to **Local Ollama** (\`http://localhost:11434\`) for 100% offline, air-gapped AI that never leaves your machine!`,
       timestamp: new Date().toLocaleTimeString(),
-      providerUsed: 'Courier Copilot'
+      providerUsed: 'Chetan'
     }
   ]);
 
@@ -127,7 +138,7 @@ I am your local-first AI assistant for API development and testing.
         {
           id: `err-${Date.now()}`,
           role: 'assistant',
-          content: `⚠️ Error contacting Copilot service: ${err.message}`,
+          content: `⚠️ Error contacting Chetan service: ${err.message}`,
           timestamp: new Date().toLocaleTimeString(),
         }
       ]);
@@ -143,22 +154,48 @@ I am your local-first AI assistant for API development and testing.
 
   if (!isOpen) return null;
 
+  // ── Minimized strip view ──────────────────────────────────────────────────
+  if (panelMode === 'minimized') {
+    return (
+      <div className="h-full w-12 bg-[#121216] border-l border-zinc-800 flex flex-col items-center py-3 gap-3 select-none">
+        <button
+          onClick={onMinimize}
+          className="p-2 rounded-lg hover:bg-zinc-800 text-purple-400 hover:text-purple-300 transition-colors"
+          title="Expand Chetan AI"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+        <div className="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400">
+          <Sparkles className="w-4 h-4" />
+        </div>
+        <button
+          onClick={onClose}
+          className="mt-auto p-2 rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-colors"
+          title="Close Chetan AI"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  }
+
+  // ── Full panel view (normal / maximized) ─────────────────────────────────
   return (
-    <div className="fixed inset-y-0 right-0 w-96 md:w-[440px] bg-[#121216] border-l border-zinc-800 shadow-2xl z-50 flex flex-col select-none animate-in slide-in-from-right duration-200">
+    <div className="h-full w-full bg-[#121216] border-l border-zinc-800 shadow-2xl flex flex-col select-none">
       {/* Header */}
-      <div className="h-14 border-b border-zinc-800 px-4 flex items-center justify-between bg-[#15151a]">
+      <div className="h-14 border-b border-zinc-800 px-4 flex items-center justify-between bg-[#15151a] flex-shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400">
             <Sparkles className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="font-bold text-xs text-zinc-100">Courier Copilot</span>
+              <span className="font-bold text-xs text-zinc-100">Chetan AI</span>
               <span className="text-[10px] bg-purple-950 text-purple-300 border border-purple-800 px-1 py-0.2 rounded font-semibold">
                 AI Assistant
               </span>
             </div>
-            <p className="text-[10px] text-zinc-400">Air-Gapped & Local-First Intelligence</p>
+            <p className="text-[10px] text-zinc-400">Air-Gapped &amp; Local-First Intelligence</p>
           </div>
         </div>
 
@@ -171,9 +208,29 @@ I am your local-first AI assistant for API development and testing.
             <Settings className="w-4 h-4" />
           </button>
 
+          {/* Minimize → icon strip */}
+          <button
+            onClick={onMinimize}
+            className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+            title="Minimize to icon strip"
+          >
+            <Minimize2 className="w-4 h-4" />
+          </button>
+
+          {/* Maximize / Restore */}
+          <button
+            onClick={onMaximize}
+            className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+            title={panelMode === 'maximized' ? 'Restore width' : 'Expand to 50% width'}
+          >
+            <Maximize2 className="w-4 h-4" />
+          </button>
+
+          {/* Close */}
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+            title="Close Chetan AI"
           >
             <X className="w-4 h-4" />
           </button>
@@ -353,7 +410,7 @@ I am your local-first AI assistant for API development and testing.
         {isLoading && (
           <div className="flex gap-2.5 items-center text-xs text-zinc-400 italic bg-zinc-900/40 p-3 rounded-xl border border-zinc-800/60">
             <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-            <span>Courier Copilot is thinking...</span>
+            <span>Chetan is thinking...</span>
           </div>
         )}
         <div ref={messagesEndRef} />
@@ -372,14 +429,14 @@ I am your local-first AI assistant for API development and testing.
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask Copilot or generate request/tests..."
+            placeholder="Ask Chetan or generate request/tests..."
             className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-purple-500 transition-colors"
           />
           <button
             type="submit"
             disabled={!input.trim() || isLoading}
             className="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed text-white p-2 rounded-lg transition-colors"
-            title="Send to Copilot"
+            title="Send to Chetan"
           >
             <Send className="w-3.5 h-3.5" />
           </button>

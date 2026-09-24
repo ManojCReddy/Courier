@@ -37,7 +37,8 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="h-14 border-b border-zinc-800 bg-[#121215] px-4 flex items-center justify-between select-none">
+    <header className="relative h-14 border-b border-zinc-800 bg-[#121215] px-4 flex items-center justify-between select-none">
+
       {/* Brand & Air-Gapped Badge */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2.5">
@@ -83,8 +84,12 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Right Actions */}
-      <div className="flex items-center gap-2">
+      {/*
+        Right Actions — pr-32 creates a clear zone on the right so
+        the "Chetan" button never overlaps the absolutely-pinned
+        window controls (which occupy ~120 px from the right edge).
+      */}
+      <div className="flex items-center gap-2 pr-32">
         <button
           onClick={onOpenSuiteRunner}
           className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-emerald-400 border border-emerald-900/60 transition-colors"
@@ -112,7 +117,23 @@ export const Header: React.FC<HeaderProps> = ({
 
         <div className="h-4 w-[1px] bg-zinc-800 mx-1" />
 
-        <div className="flex items-center gap-1.5 ml-1">
+        {/* Chetan — clean label, no secondary badge */}
+        <button
+          onClick={onToggleCopilot}
+          className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all shadow-sm ${
+            copilotOpen
+              ? 'bg-purple-600 text-white border-purple-500 shadow-purple-900/30'
+              : 'bg-gradient-to-r from-purple-950/50 to-indigo-950/50 hover:from-purple-900/60 hover:to-indigo-900/60 text-purple-300 border-purple-800/60 hover:border-purple-600'
+          }`}
+        >
+          <Sparkles className={`w-3.5 h-3.5 ${copilotOpen ? 'animate-spin text-white' : 'text-purple-400'}`} />
+          <span>Chetan</span>
+        </button>
+      </div>
+
+      {/* Window Controls — absolute top-right, never overlaps other content */}
+      <div className="absolute top-0 right-0 h-full flex items-center pr-4">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={() => handleWindowAction('minimize')}
             className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
@@ -138,22 +159,8 @@ export const Header: React.FC<HeaderProps> = ({
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
-
-        {/* Courier Copilot Toggle Button */}
-        <button
-          onClick={onToggleCopilot}
-          className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all shadow-sm ${
-            copilotOpen
-              ? 'bg-purple-600 text-white border-purple-500 shadow-purple-900/30'
-              : 'bg-gradient-to-r from-purple-950/50 to-indigo-950/50 hover:from-purple-900/60 hover:to-indigo-900/60 text-purple-300 border-purple-800/60 hover:border-purple-600'
-          }`}
-        >
-          <Sparkles className={`w-3.5 h-3.5 ${copilotOpen ? 'animate-spin text-white' : 'text-purple-400'}`} />
-          <span>Courier Copilot</span>
-          <span className="text-[9px] bg-purple-500/20 text-purple-200 px-1 py-0.2 rounded border border-purple-400/30">AI</span>
-        </button>
       </div>
+
     </header>
   );
 };
-

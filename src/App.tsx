@@ -127,7 +127,10 @@ export const App: React.FC = () => {
   };
 
   // Modals & Drawers state
-  const [copilotOpen, setCopilotOpen] = useState(false);
+  // panelMode: 'closed' | 'minimized' | 'normal' | 'maximized'
+  type PanelMode = 'closed' | 'minimized' | 'normal' | 'maximized';
+  const [panelMode, setPanelMode] = useState<PanelMode>('closed');
+  const copilotOpen = panelMode !== 'closed';
   const [curlModalOpen, setCurlModalOpen] = useState(false);
   const [envModalOpen, setEnvModalOpen] = useState(false);
   const [suiteRunnerOpen, setSuiteRunnerOpen] = useState(false);
@@ -492,7 +495,7 @@ export const App: React.FC = () => {
     if (!activeRequest) return;
     const updated = { ...activeRequest, ...requestPatch };
     handleUpdateRequest(updated);
-    setCopilotOpen(false);
+    setPanelMode('closed');
   };
 
   const handleApplyCopilotAssertions = (assertions: TestAssertion[]) => {
@@ -502,7 +505,7 @@ export const App: React.FC = () => {
       assertions: [...activeRequest.assertions, ...assertions],
     };
     handleUpdateRequest(updated);
-    setCopilotOpen(false);
+    setPanelMode('closed');
   };
 
   return (
@@ -526,10 +529,10 @@ export const App: React.FC = () => {
           layout: settings.layout === 'horizontal' ? 'vertical' : 'horizontal',
         })}
         copilotOpen={copilotOpen}
-        onToggleCopilot={() => setCopilotOpen(!copilotOpen)}
+        onToggleCopilot={() => setPanelMode(panelMode === 'closed' ? 'normal' : 'closed')}
       />
 
-      {/* Main Workbench Area */}
+      {/* Main Workbench Area — Sidebar | Canvas | Chetan Panel */}
       <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left Collections Sidebar */}
         <Sidebar
@@ -603,8 +606,8 @@ export const App: React.FC = () => {
                 <ResponsePanel
                   response={currentResponse}
                   isLoading={isLoadingRequest}
-                  onDiagnoseWithCopilot={() => setCopilotOpen(true)}
-                  onAutoGenerateTests={() => setCopilotOpen(true)}
+                  onDiagnoseWithCopilot={() => setPanelMode('normal')}
+                  onAutoGenerateTests={() => setPanelMode('normal')}
                 />
               </div>
             </div>
@@ -620,17 +623,37 @@ export const App: React.FC = () => {
             </div>
           )}
         </div>
-      </div>
 
-      {/* Courier Copilot AI Assistant Drawer */}
-      <CopilotDrawer
-        isOpen={copilotOpen}
-        onClose={() => setCopilotOpen(false)}
-        currentRequest={activeRequest}
-        currentResponse={currentResponse}
-        onApplyRequest={handleApplyCopilotRequest}
-        onApplyAssertions={handleApplyCopilotAssertions}
-      />
+        {/* ── Chetan AI Panel (inline, not fixed) ── */}
+        {/* Resize handle — only visible in normal/maximized modes */}
+        {(panelMode === 'normal' || panelMode === 'maximized') && (
+          <div className="w-px bg-zinc-700/80 hover:bg-zinc-500/90 cursor-col-resize" />
+        )}
+
+        {/* The panel itself — transitions between all 4 width states */}
+        <div
+          className={`
+            flex-shrink-0 overflow-hidden
+            transition-all duration-300 ease-in-out
+            ${panelMode === 'closed'    ? 'w-0'   : ''}
+            ${panelMode === 'minimized' ? 'w-12'  : ''}
+            ${panelMode === 'normal'    ? 'w-[400px]' : ''}
+            ${panelMode === 'maximized' ? 'w-1/2' : ''}
+          `}
+        >
+          <CopilotDrawer
+            isOpen={panelMode !== 'closed'}
+            panelMode={panelMode}
+            onClose={() => setPanelMode('closed')}
+            onMinimize={() => setPanelMode(panelMode === 'minimized' ? 'normal' : 'minimized')}
+            onMaximize={() => setPanelMode(panelMode === 'maximized' ? 'normal' : 'maximized')}
+            currentRequest={activeRequest}
+            currentResponse={currentResponse}
+            onApplyRequest={handleApplyCopilotRequest}
+            onApplyAssertions={handleApplyCopilotAssertions}
+          />
+        </div>
+      </div>
 
       {/* Modals */}
       <CurlImportModal
