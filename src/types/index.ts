@@ -68,6 +68,7 @@ export interface CourierFolder {
   name: string;
   requests: CourierRequest[];
   folders?: CourierFolder[];
+  variables?: KeyValuePair[];
 }
 
 export interface CourierCollection {
@@ -76,6 +77,7 @@ export interface CourierCollection {
   description?: string;
   requests: CourierRequest[];
   folders?: CourierFolder[];
+  variables?: KeyValuePair[];
 }
 
 export interface AppSettings {
@@ -108,6 +110,7 @@ export interface HttpResponse {
   curlCommand: string;
   testResults?: TestResult[];
   timestamp: string;
+  scriptLogs?: Array<{ level: 'info' | 'warn' | 'error' | 'pass' | 'fail'; message: string }>;
 }
 
 export interface CopilotMessage {

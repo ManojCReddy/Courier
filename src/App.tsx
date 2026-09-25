@@ -19,6 +19,8 @@ import { CurlImportModal } from './components/CurlImportModal';
 import { EnvironmentModal } from './components/EnvironmentModal';
 import { SuiteRunnerModal } from './components/SuiteRunnerModal';
 import { SettingsModal } from './components/SettingsModal';
+import { resolveRequestEnvironment } from './services/environmentScoping';
+import { runScript } from './services/scriptRunner';
 
 export const App: React.FC = () => {
   // Collections & Requests state
@@ -27,8 +29,9 @@ export const App: React.FC = () => {
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
 
-  // Response state
-  const [currentResponse, setCurrentResponse] = useState<HttpResponse | null>(null);
+  // Response state cached per request ID
+  const [responsesByRequestId, setResponsesByRequestId] = useState<Record<string, HttpResponse>>({});
+  const currentResponse = activeRequestId ? responsesByRequestId[activeRequestId] || null : null;
   const [isLoadingRequest, setIsLoadingRequest] = useState(false);
 
   // Environments state
@@ -190,7 +193,6 @@ export const App: React.FC = () => {
     }
     setActiveRequestId(req.id);
     setActiveCollectionId(collectionId);
-    setCurrentResponse(null);
   };
 
   const handleCloseTab = (requestId: string) => {
@@ -261,33 +263,80 @@ export const App: React.FC = () => {
     }
   };
 
-  // Send Request
+  // Send Request with Tiered Scoping (Folder -> Collection -> Global Env) & Script Execution
   const handleSendRequest = async () => {
     if (!activeRequest) return;
     setIsLoadingRequest(true);
 
-    const activeEnv = environments.find(e => e.id === selectedEnvId);
-    const envVars: Record<string, string> = {};
-    if (activeEnv?.variables) {
-      activeEnv.variables.forEach(v => {
-        if (v.enabled) envVars[v.key] = v.value;
-      });
-    }
+    const activeEnv = environments.find(e => e.id === selectedEnvId) || null;
+    const { variables: envVars } = resolveRequestEnvironment(collections, activeRequest.id, activeEnv);
 
     try {
       const response = await executeRequest(activeRequest, envVars, settings);
-      setCurrentResponse(response);
+
+      let finalResponse: HttpResponse = response;
+      // Execute post-response script if defined
+      if (activeRequest.script && activeRequest.script.trim()) {
+        const scriptRes = runScript(activeRequest.script, response, envVars);
+        finalResponse = {
+          ...response,
+          scriptLogs: scriptRes.logs,
+        };
+
+        // 1. Persist Global Workspace mutations from setGlobalEnv("key", "val")
+        if (scriptRes.globalMutations && Object.keys(scriptRes.globalMutations).length > 0 && activeEnv) {
+          const updatedVars = [...activeEnv.variables];
+          for (const [k, v] of Object.entries(scriptRes.globalMutations)) {
+            const idx = updatedVars.findIndex(item => item.key === k);
+            if (idx >= 0) {
+              updatedVars[idx] = { ...updatedVars[idx], value: v };
+            } else {
+              updatedVars.push({ key: k, value: v, enabled: true });
+            }
+          }
+          const updatedEnv: Environment = { ...activeEnv, variables: updatedVars };
+          saveEnvironment(updatedEnv).catch(console.warn);
+          setEnvironments(prev => prev.map(e => e.id === updatedEnv.id ? updatedEnv : e));
+        }
+
+        // 2. Persist Local Collection/Folder mutations from setEnv("key", "val")
+        if (scriptRes.collectionMutations && Object.keys(scriptRes.collectionMutations).length > 0 && activeCollectionId) {
+          const targetCol = collections.find(c => c.id === activeCollectionId);
+          if (targetCol) {
+            const colVars = [...(targetCol.variables || [])];
+            for (const [k, v] of Object.entries(scriptRes.collectionMutations)) {
+              const idx = colVars.findIndex(item => item.key === k);
+              if (idx >= 0) {
+                colVars[idx] = { ...colVars[idx], value: v };
+              } else {
+                colVars.push({ key: k, value: v, enabled: true });
+              }
+            }
+            const updatedCol = { ...targetCol, variables: colVars };
+            saveCollection(updatedCol).catch(console.warn);
+            setCollections(prev => prev.map(c => c.id === updatedCol.id ? updatedCol : c));
+          }
+        }
+      }
+
+      setResponsesByRequestId(prev => ({
+        ...prev,
+        [activeRequest.id]: finalResponse,
+      }));
     } catch (err: any) {
-      setCurrentResponse({
-        status: 0,
-        statusText: 'Execution Error',
-        headers: {},
-        data: { error: err.message },
-        timeMs: 0,
-        sizeBytes: 0,
-        curlCommand: '',
-        timestamp: new Date().toISOString(),
-      });
+      setResponsesByRequestId(prev => ({
+        ...prev,
+        [activeRequest.id]: {
+          status: 0,
+          statusText: 'Execution Error',
+          headers: {},
+          data: { error: err.message },
+          timeMs: 0,
+          sizeBytes: 0,
+          curlCommand: '',
+          timestamp: new Date().toISOString(),
+        },
+      }));
     } finally {
       setIsLoadingRequest(false);
     }

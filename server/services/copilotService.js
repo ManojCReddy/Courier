@@ -12,8 +12,8 @@ export async function processCopilotChat({
 }) {
   const {
     provider = 'auto', // 'local_ollama' | 'gemini' | 'openai' | 'auto'
-    ollamaUrl = 'http://localhost:11434',
-    ollamaModel = 'llama3',
+    ollamaUrl = 'http://127.0.0.1:11434',
+    ollamaModel = 'qwen2.5-coder:7b',
     geminiKey = process.env.GEMINI_API_KEY || '',
     geminiModel = 'gemini-2.5-flash',
     openaiKey = process.env.OPENAI_API_KEY || '',
@@ -141,13 +141,43 @@ async function callOllama(url, model, systemPrompt, messages) {
     ...messages.map(m => ({ role: m.role, content: m.content }))
   ];
 
-  const res = await axios.post(`${url}/api/chat`, {
-    model,
-    messages: formattedMessages,
-    stream: false,
-  }, { timeout: 15000 });
+  const targetUrls = [url];
+  if (url.includes('localhost')) {
+    targetUrls.push(url.replace('localhost', '127.0.0.1'));
+  } else if (url.includes('127.0.0.1')) {
+    targetUrls.push(url.replace('127.0.0.1', 'localhost'));
+  }
 
-  return res.data?.message?.content || '';
+  for (const endpoint of targetUrls) {
+    try {
+      const res = await axios.post(`${endpoint}/api/chat`, {
+        model,
+        messages: formattedMessages,
+        stream: false,
+      }, { timeout: 20000 });
+
+      if (res.data?.message?.content) {
+        return res.data.message.content;
+      }
+    } catch (chatErr) {
+      // Fallback to /api/generate
+      try {
+        const fullPrompt = `${systemPrompt}\n\n` + messages.map(m => `${m.role === 'assistant' ? 'Assistant' : 'User'}: ${m.content}`).join('\n') + '\nAssistant:';
+        const genRes = await axios.post(`${endpoint}/api/generate`, {
+          model,
+          prompt: fullPrompt,
+          stream: false,
+        }, { timeout: 20000 });
+        if (genRes.data?.response) {
+          return genRes.data.response;
+        }
+      } catch {
+        // Continue to next URL candidate
+      }
+    }
+  }
+
+  throw new Error(`Failed to connect to Ollama at ${url} for model ${model}`);
 }
 
 async function callGemini(apiKey, model = 'gemini-2.5-flash', systemPrompt, messages) {

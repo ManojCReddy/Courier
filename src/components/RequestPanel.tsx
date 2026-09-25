@@ -11,9 +11,11 @@ import {
   FileText,
   SlidersHorizontal,
   FlaskConical,
-  Sparkles
+  Sparkles,
+  Terminal,
+  Code2
 } from 'lucide-react';
-import { CourierRequest, HttpMethod, AuthType, BodyType, TestAssertion } from '../types';
+import { CourierRequest, HttpMethod, AuthType, BodyType, TestAssertion, KeyValuePair } from '../types';
 
 interface RequestPanelProps {
   request: CourierRequest;
@@ -32,7 +34,7 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
   onSaveRequest,
   onOpenCopilotWithPrompt,
 }) => {
-  const [activeTab, setActiveTab] = useState<'params' | 'headers' | 'auth' | 'body' | 'tests'>('params');
+  const [activeTab, setActiveTab] = useState<'params' | 'headers' | 'auth' | 'body' | 'tests' | 'script'>('params');
 
   const updateField = <K extends keyof CourierRequest>(key: K, value: CourierRequest[K]) => {
     onUpdateRequest({ ...request, [key]: value });
@@ -219,7 +221,7 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
             }}
             placeholder="https://api.example.com/v1/resource or {{baseUrl}}/resource"
             className="w-full rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-emerald-500 transition-colors"
-            style={{ background: 'var(--app-surface-soft)', border: '1px solid var(--app-border)', color: 'var(--text-primary)', placeholder: 'var(--text-soft)' }}
+            style={{ background: 'var(--app-surface-soft)', border: '1px solid var(--app-border)', color: 'var(--text-primary)' }}
           />
         </div>
 
@@ -321,6 +323,20 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
             <span className="ml-1.5 px-1.5 py-0.2 rounded-full bg-zinc-800 text-[10px] text-emerald-400 font-mono">
               {request.assertions.length}
             </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveTab('script')}
+          className={`py-2 px-3 border-b-2 font-medium transition-colors ${
+            activeTab === 'script'
+              ? 'border-emerald-500 text-emerald-400'
+              : 'border-transparent text-zinc-400 hover:text-zinc-200'
+          }`}
+        >
+          Script
+          {request.script && request.script.trim() && (
+            <span className="ml-1.5 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
           )}
         </button>
       </div>
@@ -836,6 +852,110 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* SCRIPT TAB: Post-Response Scripting & Assertions */}
+        {activeTab === 'script' && (
+          <div className="flex flex-col h-full space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
+                  <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+                  Post-Response Script
+                </h4>
+                <p className="text-[11px] text-zinc-500">
+                  Executes automatically upon response receipt. Sandbox supports <code className="text-emerald-400">expect()</code>, <code className="text-emerald-400">setEnv()</code>, and <code className="text-emerald-400">pm.*</code>.
+                </p>
+              </div>
+
+              {/* Quick Snippet Buttons */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const snippet = '\nexpect(response.status).toBe(200);\n';
+                    updateField('script', (request.script || '') + snippet);
+                  }}
+                  className="text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2 py-1 rounded transition-colors border border-zinc-700/60"
+                  title="Assert HTTP Status 200"
+                >
+                  + expect status 200
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const snippet = '\nsetEnv("token", response.data?.token || "collection_val");\n';
+                    updateField('script', (request.script || '') + snippet);
+                  }}
+                  className="text-[10px] bg-zinc-800 hover:bg-zinc-700 text-purple-300 px-2 py-1 rounded transition-colors border border-purple-800/60"
+                  title="Save locally in active Collection/Folder scope"
+                >
+                  + setEnv() [Collection]
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const snippet = '\nsetGlobalEnv("apiBase", response.data?.baseUrl || "https://api.example.com");\n';
+                    updateField('script', (request.script || '') + snippet);
+                  }}
+                  className="text-[10px] bg-zinc-800 hover:bg-zinc-700 text-emerald-300 px-2 py-1 rounded transition-colors border border-emerald-800/60"
+                  title="Promote and save to Global Workspace level"
+                >
+                  + setGlobalEnv() [Global]
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const snippet = '\nexpect(response.timeMs).toBeLessThan(1000);\n';
+                    updateField('script', (request.script || '') + snippet);
+                  }}
+                  className="text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2 py-1 rounded transition-colors border border-zinc-700/60"
+                  title="Assert response timing"
+                >
+                  + latency &lt; 1000ms
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const snippet = '\nexpect(response.data).toBeDefined();\n';
+                    updateField('script', (request.script || '') + snippet);
+                  }}
+                  className="text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2 py-1 rounded transition-colors border border-zinc-700/60"
+                  title="Assert data is defined"
+                >
+                  + data defined
+                </button>
+              </div>
+            </div>
+
+            {/* Script Textarea Editor */}
+            <div className="flex-1 flex flex-col min-h-[220px]">
+              <textarea
+                value={request.script || ''}
+                onChange={(e) => updateField('script', e.target.value)}
+                placeholder={`// Example: Post-response test script\nexpect(response.status).toBe(200);\nexpect(response.timeMs).toBeLessThan(1500);\n\n// 1. Save variable in Collection/Folder scope:\nsetEnv("localToken", response.data?.token);\n\n// 2. Promote variable to Global Workspace level:\nsetGlobalEnv("authToken", response.data?.token);\n\n// Postman / Bruno compatibility:\n// pm.test("Has valid payload", () => pm.expect(pm.response.code).to.equal(200));`}
+                className="w-full flex-1 bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs font-mono text-zinc-200 focus:outline-none focus:border-zinc-700 resize-none leading-relaxed"
+                spellCheck={false}
+              />
+            </div>
+
+            {/* Sandbox Reference Quick-Guide */}
+            <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-lg p-2.5 text-[11px] text-zinc-400 space-y-1">
+              <span className="font-semibold text-zinc-300 block text-[11px]">Runtime Sandbox Globals:</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 font-mono text-[10px] text-zinc-400">
+                <div><span className="text-emerald-400">expect(val).toBe(exp)</span> - strict equality</div>
+                <div><span className="text-purple-400">setEnv(k, v)</span> - saves locally in Collection/Folder scope</div>
+                <div><span className="text-emerald-400">expect(val).toEqual(exp)</span> - deep JSON match</div>
+                <div><span className="text-emerald-400">setGlobalEnv(k, v)</span> - promotes to Global Workspace env</div>
+                <div><span className="text-emerald-400">expect(val).toContain(sub)</span> - array/string includes</div>
+                <div><span className="text-zinc-300">getEnv(k)</span> - searches Folder -&gt; Collection -&gt; Global</div>
+              </div>
             </div>
           </div>
         )}

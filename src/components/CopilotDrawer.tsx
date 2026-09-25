@@ -76,15 +76,41 @@ I am your local-first AI assistant for API development and testing.
       try { return JSON.parse(saved); } catch {}
     }
     return {
-      provider: 'gemini',
-      ollamaUrl: 'http://localhost:11434',
-      ollamaModel: 'llama3',
+      provider: 'local_ollama',
+      ollamaUrl: 'http://127.0.0.1:11434',
+      ollamaModel: 'qwen2.5-coder:7b',
       geminiKey: '',
       geminiModel: 'gemini-2.5-flash',
       openaiKey: '',
       openaiModel: 'gpt-4o-mini',
     };
   });
+
+  const [ollamaTestStatus, setOllamaTestStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [isTestingOllama, setIsTestingOllama] = useState(false);
+
+  const handleTestOllama = async () => {
+    setIsTestingOllama(true);
+    setOllamaTestStatus(null);
+    try {
+      const url = config.ollamaUrl || 'http://127.0.0.1:11434';
+      const targetModel = config.ollamaModel || 'qwen2.5-coder:7b';
+      const res = await fetch(`${url}/api/tags`);
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const data = await res.json();
+      const models = (data.models || []).map((m: any) => m.name);
+      const hasModel = models.some((m: string) => m.includes(targetModel) || targetModel.includes(m));
+      if (hasModel) {
+        setOllamaTestStatus({ ok: true, msg: `Verified: ${targetModel} responded cleanly` });
+      } else {
+        setOllamaTestStatus({ ok: true, msg: `Connected. Available: ${models.join(', ') || 'none'}` });
+      }
+    } catch (err: any) {
+      setOllamaTestStatus({ ok: false, msg: `Connection failed: ${err.message}` });
+    } finally {
+      setIsTestingOllama(false);
+    }
+  };
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -295,6 +321,64 @@ I am your local-first AI assistant for API development and testing.
                   className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-zinc-200 font-mono text-[11px]"
                 />
               </div>
+            </div>
+          )}
+
+          {(config.provider === 'local_ollama' || config.provider === 'auto') && (
+            <div className="space-y-2 p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800">
+              <div className="flex items-center justify-between">
+                <label className="text-zinc-300 font-medium text-[11px]">Ollama Local Endpoint:</label>
+                <button
+                  type="button"
+                  onClick={handleTestOllama}
+                  disabled={isTestingOllama}
+                  className="px-2 py-0.5 rounded text-[10px] bg-purple-900/40 hover:bg-purple-800/60 text-purple-300 border border-purple-700/50 transition-colors disabled:opacity-50"
+                >
+                  {isTestingOllama ? 'Connecting...' : 'Test Connection'}
+                </button>
+              </div>
+
+              <input
+                type="text"
+                value={config.ollamaUrl || 'http://127.0.0.1:11434'}
+                onChange={(e) => saveConfig({ ...config, ollamaUrl: e.target.value })}
+                placeholder="http://127.0.0.1:11434"
+                className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-zinc-200 font-mono text-[11px]"
+              />
+
+              <div>
+                <label className="text-zinc-400 text-[10px]">Ollama Model:</label>
+                <div className="flex gap-1.5 mt-0.5">
+                  <input
+                    type="text"
+                    value={config.ollamaModel || 'qwen2.5-coder:7b'}
+                    onChange={(e) => saveConfig({ ...config, ollamaModel: e.target.value })}
+                    placeholder="qwen2.5-coder:7b"
+                    className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-zinc-200 font-mono text-[11px]"
+                  />
+                  <select
+                    value={config.ollamaModel || 'qwen2.5-coder:7b'}
+                    onChange={(e) => saveConfig({ ...config, ollamaModel: e.target.value })}
+                    className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-zinc-300 text-[11px]"
+                  >
+                    <option value="qwen2.5-coder:7b">qwen2.5-coder:7b</option>
+                    <option value="llama3">llama3</option>
+                    <option value="mistral">mistral</option>
+                    <option value="deepseek-coder">deepseek-coder</option>
+                  </select>
+                </div>
+              </div>
+
+              {ollamaTestStatus && (
+                <div className={`text-[10px] px-2 py-1 rounded flex items-center gap-1.5 ${
+                  ollamaTestStatus.ok
+                    ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-800/60'
+                    : 'bg-rose-950/60 text-rose-300 border border-rose-800/60'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${ollamaTestStatus.ok ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                  <span>{ollamaTestStatus.msg}</span>
+                </div>
+              )}
             </div>
           )}
 

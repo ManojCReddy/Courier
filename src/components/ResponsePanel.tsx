@@ -282,6 +282,41 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
                 ))}
               </div>
             )}
+
+            {/* Script Assertions & Logs */}
+            {response.scriptLogs && response.scriptLogs.length > 0 && (
+              <div className="space-y-2 mt-4 pt-3 border-t border-zinc-800">
+                <div className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
+                  <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Script Assertions & Logs</span>
+                </div>
+                <div className="space-y-1.5 font-mono text-[11px]">
+                  {response.scriptLogs.map((log, idx) => (
+                    <div
+                      key={idx}
+                      className={`p-2 rounded-md border flex items-center gap-2 ${
+                        log.level === 'pass'
+                          ? 'bg-emerald-950/20 border-emerald-900/40 text-emerald-300'
+                          : log.level === 'fail' || log.level === 'error'
+                          ? 'bg-rose-950/20 border-rose-900/40 text-rose-300'
+                          : log.level === 'warn'
+                          ? 'bg-amber-950/20 border-amber-900/40 text-amber-300'
+                          : 'bg-zinc-900/50 border-zinc-800 text-zinc-300'
+                      }`}
+                    >
+                      {log.level === 'pass' ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                      ) : log.level === 'fail' || log.level === 'error' ? (
+                        <XCircle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
+                      ) : (
+                        <Terminal className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
+                      )}
+                      <span className="truncate">{log.message}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

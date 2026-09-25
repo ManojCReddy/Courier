@@ -11,6 +11,8 @@ export interface ScriptLog {
 
 export interface ScriptResult {
   logs: ScriptLog[];
+  collectionMutations: Record<string, string>;
+  globalMutations: Record<string, string>;
   envMutations: Record<string, string>;
   error?: string;
 }
@@ -94,14 +96,16 @@ function createExpect(value: any, logs: ScriptLog[]) {
  * Executes a user-authored post-response script in a sandboxed Function scope.
  *
  * Globals injected into the script context:
- *   response         — { status, statusText, headers, data, timeMs, sizeBytes }
- *   expect(value)    — returns chainable assertion object
- *   setEnv(k, v)     — writes to the active environment (returned in envMutations)
- *   getEnv(k)        — reads current env variable by key (from envVars param)
+ *   response              — { status, statusText, headers, data, timeMs, sizeBytes }
+ *   expect(value)         — returns chainable assertion object (toBe, toEqual, toContain, etc.)
+ *   setEnv(k, v)          — saves/updates variable locally within collection/folder scope
+ *   setGlobalEnv(k, v)    — promotes/saves variable to the global workspace level
+ *   getEnv(k)             — reads current env variable by key (searches tiered scope)
  *   console.log/warn/error — captured into logs[]
- *   pm.response      — Postman-compat alias (pm.response.code, pm.response.json())
+ *   pm.response           — Postman-compat alias (pm.response.code, pm.response.json())
  *   pm.environment.set/get — Postman-compat alias for setEnv/getEnv
- *   pm.test(name, fn) — Postman-compat test block
+ *   pm.globals.set/get     — Postman-compat alias for setGlobalEnv/getEnv
+ *   pm.test(name, fn)     — Postman-compat test block
  */
 export function runScript(
   script: string,
@@ -109,13 +113,23 @@ export function runScript(
   envVars: Record<string, string> = {},
 ): ScriptResult {
   const logs: ScriptLog[] = [];
-  const envMutations: Record<string, string> = {};
+  const collectionMutations: Record<string, string> = {};
+  const globalMutations: Record<string, string> = {};
 
   // ── Sandbox helpers ────────────────────────────────────────────────────────
 
+  // setEnv: saves or updates the variable locally within collection/folder scope
   const setEnv = (key: string, value: string) => {
-    envMutations[key] = String(value);
-    logs.push({ level: 'info', message: `setEnv("${key}", "${value}")` });
+    const val = String(value ?? '');
+    collectionMutations[key] = val;
+    logs.push({ level: 'info', message: `setEnv("${key}", "${val}") [Scope: Collection/Folder]` });
+  };
+
+  // setGlobalEnv: promotes and saves the variable to the global workspace level
+  const setGlobalEnv = (key: string, value: string) => {
+    const val = String(value ?? '');
+    globalMutations[key] = val;
+    logs.push({ level: 'info', message: `setGlobalEnv("${key}", "${val}") [Scope: Global Workspace]` });
   };
 
   const getEnv = (key: string): string => envVars[key] ?? '';
@@ -138,7 +152,7 @@ export function runScript(
     text: ()    => typeof response.data === 'string' ? response.data : JSON.stringify(response.data),
   };
 
-  // Postman-compat pm object
+  // Postman & Bruno compatibility layer
   const pm = {
     response: {
       code:       response.status,
@@ -150,6 +164,10 @@ export function runScript(
     },
     environment: {
       set: setEnv,
+      get: getEnv,
+    },
+    globals: {
+      set: setGlobalEnv,
       get: getEnv,
     },
     test: (name: string, fn: () => void) => {
@@ -165,12 +183,11 @@ export function runScript(
   // ── Execute ─────────────────────────────────────────────────────────────────
 
   try {
-    // Build the sandboxed function. All helper names become parameters so they
-    // shadow any outer globals the user might accidentally reference.
     const sandboxFn = new Function(
       'response',
       'expect',
       'setEnv',
+      'setGlobalEnv',
       'getEnv',
       'console',
       'pm',
@@ -185,6 +202,7 @@ export function runScript(
       responseSandbox,
       (value: any) => createExpect(value, logs),
       setEnv,
+      setGlobalEnv,
       getEnv,
       consoleSandbox,
       pm,
@@ -193,8 +211,19 @@ export function runScript(
       undefined, // fetch   → undefined
     );
   } catch (err: any) {
-    return { logs, envMutations, error: `Script error: ${err?.message ?? String(err)}` };
+    return {
+      logs,
+      collectionMutations,
+      globalMutations,
+      envMutations: { ...collectionMutations, ...globalMutations },
+      error: `Script error: ${err?.message ?? String(err)}`
+    };
   }
 
-  return { logs, envMutations };
+  return {
+    logs,
+    collectionMutations,
+    globalMutations,
+    envMutations: { ...collectionMutations, ...globalMutations }
+  };
 }

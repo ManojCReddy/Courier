@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Play, CheckCircle2, XCircle, Clock, RotateCcw } from 'lucide-react';
 import { CourierCollection, Environment, HttpResponse, CourierRequest } from '../types';
 import { executeRequest } from '../services/api';
+import { resolveRequestEnvironment } from '../services/environmentScoping';
 
 interface SuiteRunnerModalProps {
   isOpen: boolean;
@@ -62,7 +63,8 @@ export const SuiteRunnerModal: React.FC<SuiteRunnerModalProps> = ({
       });
 
       try {
-        const res = await executeRequest(req, envVariables);
+        const { variables: tieredVars } = resolveRequestEnvironment(collections, req.id, activeEnv);
+        const res = await executeRequest(req, tieredVars);
         const hasFailedTests = res.testResults?.some(t => !t.passed);
         const isSuccess = res.status >= 200 && res.status < 400 && !hasFailedTests;
 
