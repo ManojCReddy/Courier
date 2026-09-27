@@ -14,7 +14,6 @@ import { Sidebar } from './components/Sidebar';
 import { RequestTabs } from './components/RequestTabs';
 import { RequestPanel } from './components/RequestPanel';
 import { ResponsePanel } from './components/ResponsePanel';
-import { CopilotDrawer } from './components/CopilotDrawer';
 import { CurlImportModal } from './components/CurlImportModal';
 import { EnvironmentModal } from './components/EnvironmentModal';
 import { SuiteRunnerModal } from './components/SuiteRunnerModal';
@@ -129,11 +128,7 @@ export const App: React.FC = () => {
     document.body.style.userSelect = 'none';
   };
 
-  // Modals & Drawers state
-  // panelMode: 'closed' | 'minimized' | 'normal' | 'maximized'
-  type PanelMode = 'closed' | 'minimized' | 'normal' | 'maximized';
-  const [panelMode, setPanelMode] = useState<PanelMode>('closed');
-  const copilotOpen = panelMode !== 'closed';
+  // Modals state
   const [curlModalOpen, setCurlModalOpen] = useState(false);
   const [envModalOpen, setEnvModalOpen] = useState(false);
   const [suiteRunnerOpen, setSuiteRunnerOpen] = useState(false);
@@ -184,6 +179,28 @@ export const App: React.FC = () => {
   // Find currently active request
   const activeTabItem = openTabs.find(t => t.request.id === activeRequestId);
   const activeRequest = activeTabItem?.request || null;
+  const activeEnvironment = environments.find(e => e.id === selectedEnvId) || null;
+  const activeEnvironmentVariables = activeRequest
+    ? resolveRequestEnvironment(collections, activeRequest.id, activeEnvironment).variables
+    : {};
+
+  const handleUpdateEnvironmentVariable = async (key: string, value: string) => {
+    if (!activeEnvironment) return;
+
+    const variables = [...activeEnvironment.variables];
+    const existingIndex = variables.findIndex(variable => variable.key === key);
+    if (existingIndex >= 0) {
+      variables[existingIndex] = { ...variables[existingIndex], value, enabled: true };
+    } else {
+      variables.push({ key, value, enabled: true });
+    }
+
+    const updatedEnvironment = { ...activeEnvironment, variables };
+    const savedEnvironment = await saveEnvironment(updatedEnvironment);
+    setEnvironments(prev => prev.map(environment => (
+      environment.id === savedEnvironment.id ? savedEnvironment : environment
+    )));
+  };
 
   // Handle Tab Selection
   const handleSelectRequest = (collectionId: string, req: CourierRequest) => {
@@ -268,8 +285,8 @@ export const App: React.FC = () => {
     if (!activeRequest) return;
     setIsLoadingRequest(true);
 
-    const activeEnv = environments.find(e => e.id === selectedEnvId) || null;
-    const { variables: envVars } = resolveRequestEnvironment(collections, activeRequest.id, activeEnv);
+    const activeEnv = activeEnvironment;
+    const envVars = activeEnvironmentVariables;
 
     try {
       const response = await executeRequest(activeRequest, envVars, settings);
@@ -539,24 +556,6 @@ export const App: React.FC = () => {
     }
   };
 
-  // Copilot Suggestions Handlers
-  const handleApplyCopilotRequest = (requestPatch: Partial<CourierRequest>) => {
-    if (!activeRequest) return;
-    const updated = { ...activeRequest, ...requestPatch };
-    handleUpdateRequest(updated);
-    setPanelMode('closed');
-  };
-
-  const handleApplyCopilotAssertions = (assertions: TestAssertion[]) => {
-    if (!activeRequest) return;
-    const updated = {
-      ...activeRequest,
-      assertions: [...activeRequest.assertions, ...assertions],
-    };
-    handleUpdateRequest(updated);
-    setPanelMode('closed');
-  };
-
   return (
     <div
       className="flex flex-col h-screen w-screen overflow-hidden bg-[#0c0c0e] text-zinc-200"
@@ -577,11 +576,9 @@ export const App: React.FC = () => {
           ...settings,
           layout: settings.layout === 'horizontal' ? 'vertical' : 'horizontal',
         })}
-        copilotOpen={copilotOpen}
-        onToggleCopilot={() => setPanelMode(panelMode === 'closed' ? 'normal' : 'closed')}
       />
 
-      {/* Main Workbench Area — Sidebar | Canvas | Chetan Panel */}
+      {/* Main Workbench Area — Sidebar | Canvas */}
       <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left Collections Sidebar */}
         <Sidebar
@@ -635,6 +632,8 @@ export const App: React.FC = () => {
                 <RequestPanel
                   request={activeRequest}
                   isLoading={isLoadingRequest}
+                  environmentVariables={activeEnvironmentVariables}
+                  onUpdateEnvironmentVariable={handleUpdateEnvironmentVariable}
                   onUpdateRequest={handleUpdateRequest}
                   onSendRequest={handleSendRequest}
                   onSaveRequest={handleSaveRequest}
@@ -655,8 +654,6 @@ export const App: React.FC = () => {
                 <ResponsePanel
                   response={currentResponse}
                   isLoading={isLoadingRequest}
-                  onDiagnoseWithCopilot={() => setPanelMode('normal')}
-                  onAutoGenerateTests={() => setPanelMode('normal')}
                 />
               </div>
             </div>
@@ -673,35 +670,6 @@ export const App: React.FC = () => {
           )}
         </div>
 
-        {/* ── Chetan AI Panel (inline, not fixed) ── */}
-        {/* Resize handle — only visible in normal/maximized modes */}
-        {(panelMode === 'normal' || panelMode === 'maximized') && (
-          <div className="w-px bg-zinc-700/80 hover:bg-zinc-500/90 cursor-col-resize" />
-        )}
-
-        {/* The panel itself — transitions between all 4 width states */}
-        <div
-          className={`
-            flex-shrink-0 overflow-hidden
-            transition-all duration-300 ease-in-out
-            ${panelMode === 'closed'    ? 'w-0'   : ''}
-            ${panelMode === 'minimized' ? 'w-12'  : ''}
-            ${panelMode === 'normal'    ? 'w-[400px]' : ''}
-            ${panelMode === 'maximized' ? 'w-1/2' : ''}
-          `}
-        >
-          <CopilotDrawer
-            isOpen={panelMode !== 'closed'}
-            panelMode={panelMode}
-            onClose={() => setPanelMode('closed')}
-            onMinimize={() => setPanelMode(panelMode === 'minimized' ? 'normal' : 'minimized')}
-            onMaximize={() => setPanelMode(panelMode === 'maximized' ? 'normal' : 'maximized')}
-            currentRequest={activeRequest}
-            currentResponse={currentResponse}
-            onApplyRequest={handleApplyCopilotRequest}
-            onApplyAssertions={handleApplyCopilotAssertions}
-          />
-        </div>
       </div>
 
       {/* Modals */}

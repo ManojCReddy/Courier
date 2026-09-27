@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Sparkles, Sliders, Globe, ShieldCheck, Settings, Columns, Rows, Minus, Square, X } from 'lucide-react';
+import { Play, Sliders, Globe, ShieldCheck, Settings, Columns, Rows, Minus, Square, X } from 'lucide-react';
 import airplaneLogo from '../../assets/courier-mark.svg';
 import { Environment, AppSettings } from '../types';
 
@@ -13,8 +13,6 @@ interface HeaderProps {
   onOpenSettingsModal: () => void;
   layout: AppSettings['layout'];
   onToggleLayout: () => void;
-  copilotOpen: boolean;
-  onToggleCopilot: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -27,8 +25,6 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettingsModal,
   layout,
   onToggleLayout,
-  copilotOpen,
-  onToggleCopilot,
 }) => {
   const handleWindowAction = (action: 'minimize' | 'maximize' | 'close') => {
     if (typeof window !== 'undefined' && (window as any).electronAPI) {
@@ -47,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <span className="font-black tracking-[0.18em] text-[15px] text-zinc-100 flex items-center gap-1.5">
             COURIER
-            <span className="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">v0.1</span>
+            <span className="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">v0.2</span>
           </span>
         </div>
 
@@ -84,11 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/*
-        Right Actions — pr-32 creates a clear zone on the right so
-        the "Chetan" button never overlaps the absolutely-pinned
-        window controls (which occupy ~120 px from the right edge).
-      */}
+      {/* Keep space clear for the absolutely-pinned window controls. */}
       <div className="flex items-center gap-2 pr-32">
         <button
           onClick={onOpenSuiteRunner}
@@ -117,18 +109,6 @@ export const Header: React.FC<HeaderProps> = ({
 
         <div className="h-4 w-[1px] bg-zinc-800 mx-1" />
 
-        {/* Chetan — clean label, no secondary badge */}
-        <button
-          onClick={onToggleCopilot}
-          className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all shadow-sm ${
-            copilotOpen
-              ? 'bg-purple-600 text-white border-purple-500 shadow-purple-900/30'
-              : 'bg-gradient-to-r from-purple-950/50 to-indigo-950/50 hover:from-purple-900/60 hover:to-indigo-900/60 text-purple-300 border-purple-800/60 hover:border-purple-600'
-          }`}
-        >
-          <Sparkles className={`w-3.5 h-3.5 ${copilotOpen ? 'animate-spin text-white' : 'text-purple-400'}`} />
-          <span>Chetan</span>
-        </button>
       </div>
 
       {/* Window Controls — absolute top-right, never overlaps other content */}

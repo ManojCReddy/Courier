@@ -1,7 +1,7 @@
 {
   "name": "courier",
-  "version": "0.1.1",
-  "description": "Local-first, air-gapped, git-native API testing tool with AI Copilot",
+  "version": "0.2.0",
+  "description": "Local-first, air-gapped, git-native API testing tool",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
@@ -23,7 +23,6 @@
     "bruno-alternative",
     "offline-first",
     "local-first",
-    "ai-copilot",
     "test-runner"
   ],
   "author": "",

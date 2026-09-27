@@ -19,7 +19,8 @@ export interface AuthConfig {
   apiKeyPlacement?: 'header' | 'query';
 }
 
-export type BodyType = 'none' | 'json' | 'raw' | 'urlencoded';
+export type BodyType = 'none' | 'json' | 'xml' | 'raw' | 'urlencoded' | 'formdata' | 'binary';
+export type RawBodyFormat = 'text' | 'javascript' | 'json' | 'html' | 'xml';
 
 export type AssertionType =
   | 'STATUS_CODE_EQUALS'
@@ -57,6 +58,7 @@ export interface CourierRequest {
   headers: KeyValuePair[];
   auth: AuthConfig;
   bodyType: BodyType;
+  rawFormat?: RawBodyFormat;
   body: string;
   assertions: TestAssertion[];
   /** Optional post-response script (JS). Runs after every successful send. */

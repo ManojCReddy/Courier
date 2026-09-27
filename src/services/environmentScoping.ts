@@ -195,7 +195,12 @@ export function resolveRequestEnvironment(
   scopeAudit: VariableScopeEntry[];
 } {
   const hierarchy = findRequestHierarchy(collections, requestId);
-  const localParams = hierarchy.request?.pathParams?.filter(p => p.enabled) || [];
+  const localParams = hierarchy.request?.pathParams?.filter(p => {
+    if (!p.enabled || !hierarchy.request?.url) return false;
+    const key = p.key.trim().replace(/^[:{}]*/, '').replace(/[}]*$/, '');
+    return new RegExp(`:${key}\\b`).test(hierarchy.request.url)
+      || new RegExp(`(?<!\\{)\\{${key}\\}(?!\\})`).test(hierarchy.request.url);
+  }) || [];
 
   const { variables, scopeAudit } = computeTieredEnvironment({
     globalEnv,

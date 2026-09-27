@@ -15,6 +15,7 @@ export async function executeHttpRequest(requestConfig, environment = {}, settin
     headers = [],
     body = '',
     bodyType = 'none',
+    rawFormat = 'text',
     auth = { type: 'none' },
     assertions = [],
   } = requestConfig;
@@ -106,20 +107,81 @@ export async function executeHttpRequest(requestConfig, environment = {}, settin
           resolvedHeaders['Content-Type'] = 'application/json';
         }
       }
-    } else if (bodyType === 'raw' && body) {
+    } else if (bodyType === 'xml' && body) {
       resolvedData = resolveVariables(body, environment);
-    } else if (bodyType === 'urlencoded' && Array.isArray(body)) {
-      const formParams = new URLSearchParams();
-      for (const item of body) {
-        if (item.enabled && item.key) {
-          formParams.append(
-            resolveVariables(item.key, environment),
-            resolveVariables(item.value || '', environment)
-          );
+      if (!resolvedHeaders['Content-Type']) {
+        resolvedHeaders['Content-Type'] = 'application/xml';
+      }
+    } else if (bodyType === 'raw' && body) {
+      const substitutedBody = resolveVariables(body, environment);
+      if (rawFormat === 'json') {
+        try {
+          resolvedData = JSON.parse(substitutedBody);
+        } catch {
+          resolvedData = substitutedBody;
+        }
+        if (!resolvedHeaders['Content-Type']) resolvedHeaders['Content-Type'] = 'application/json';
+      } else {
+        resolvedData = substitutedBody;
+        const rawContentTypes = {
+          javascript: 'application/javascript',
+          html: 'text/html',
+          xml: 'application/xml',
+          text: 'text/plain',
+        };
+        if (!resolvedHeaders['Content-Type']) resolvedHeaders['Content-Type'] = rawContentTypes[rawFormat] || 'text/plain';
+      }
+    } else if (bodyType === 'urlencoded' && body) {
+      let encodedEntries = body;
+      if (typeof body === 'string') {
+        try {
+          const parsed = JSON.parse(body);
+          if (Array.isArray(parsed)) encodedEntries = parsed;
+        } catch {
+          // Keep legacy text-form bodies as-is.
         }
       }
-      resolvedData = formParams.toString();
+      if (Array.isArray(encodedEntries)) {
+        const formParams = new URLSearchParams();
+        for (const item of encodedEntries) {
+          if (item.enabled && item.key) formParams.append(resolveVariables(item.key, environment), resolveVariables(item.value || '', environment));
+        }
+        resolvedData = formParams.toString();
+      } else {
+        resolvedData = resolveVariables(body, environment);
+      }
       resolvedHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
+    } else if (bodyType === 'formdata' && body) {
+      const formData = new FormData();
+      let formEntries = body;
+      if (typeof body === 'string') {
+        try {
+          const parsed = JSON.parse(body);
+          if (Array.isArray(parsed)) formEntries = parsed;
+        } catch {
+          // Keep legacy key=value lines supported.
+        }
+      }
+      if (Array.isArray(formEntries)) {
+        for (const item of formEntries) {
+          if (item.enabled && item.key) formData.append(resolveVariables(item.key, environment), resolveVariables(item.value || '', environment));
+        }
+      } else {
+        for (const line of resolveVariables(body, environment).split(/\r?\n/)) {
+          const separator = line.indexOf('=');
+          if (separator > 0) formData.append(line.slice(0, separator).trim(), line.slice(separator + 1));
+        }
+      }
+      resolvedData = formData;
+    } else if (bodyType === 'binary' && body) {
+      const dataUrlMatch = String(body).match(/^data:([^;]+);base64,(.*)$/s);
+      if (dataUrlMatch) {
+        resolvedData = Buffer.from(dataUrlMatch[2], 'base64');
+        if (!resolvedHeaders['Content-Type']) resolvedHeaders['Content-Type'] = dataUrlMatch[1];
+      } else {
+        resolvedData = Buffer.from(String(body), 'base64');
+        if (!resolvedHeaders['Content-Type']) resolvedHeaders['Content-Type'] = 'application/octet-stream';
+      }
     }
   }
 

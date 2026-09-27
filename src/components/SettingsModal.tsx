@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ShieldAlert, Save, Clock, Layout, HelpCircle, Bot, Sparkles, Check } from 'lucide-react';
+import { X, ShieldAlert, Save, Clock, Layout, HelpCircle, Check } from 'lucide-react';
 import { AppSettings } from '../types';
 
 interface SettingsModalProps {
@@ -148,28 +148,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          {/* AI / Copilot Login & Privacy Clarification */}
-          <div className="space-y-3">
-            <h4 className="font-semibold text-zinc-300 uppercase tracking-wider text-[11px] pb-1 border-b border-zinc-800 flex items-center gap-1.5">
-              <Bot className="w-3.5 h-3.5 text-purple-400" />
-              AI Chatbox &amp; Account Privacy
-            </h4>
-
-            <div className="p-3.5 rounded-lg bg-purple-950/20 border border-purple-900/40 space-y-2 text-[11px] text-purple-200">
-              <div className="font-semibold text-purple-300 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                Do customers need to log into an account to use the AI?
-              </div>
-              <p className="text-zinc-300 leading-relaxed">
-                <strong>No login is required!</strong> Courier never requires customers to create a Courier cloud account.
-              </p>
-              <ul className="list-disc pl-4 space-y-1 text-zinc-400">
-                <li><strong className="text-zinc-300">Offline Smart Engine:</strong> Works immediately out of the box with zero keys, zero accounts, and zero internet.</li>
-                <li><strong className="text-zinc-300">Local Ollama:</strong> Runs 100% offline on your computer (e.g. Llama 3) with zero data leaving your network.</li>
-                <li><strong className="text-zinc-300">Google Gemini Mode:</strong> You can optionally supply your own API key directly. No Courier sign-in or middleman server.</li>
-              </ul>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}

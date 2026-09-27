@@ -7,7 +7,7 @@
       "id": "req-1",
       "name": "Get Users List",
       "method": "GET",
-      "url": "{{baseUrl}}/:users",
+      "url": "{{baseUrl}}/users",
       "params": [
         {
           "key": "limit",
@@ -25,8 +25,8 @@
       "auth": {
         "type": "none"
       },
-      "bodyType": "none",
-      "body": "",
+      "bodyType": "raw",
+      "body": "// JavaScript request body\n",
       "assertions": [
         {
           "id": "a-1",
@@ -46,17 +46,34 @@
       "pathParams": [
         {
           "key": "users",
+          "value": "10",
+          "enabled": false
+        },
+        {
+          "key": "",
+          "value": "",
+          "enabled": true
+        },
+        {
+          "key": "",
           "value": "",
           "enabled": true
         }
-      ]
+      ],
+      "rawFormat": "javascript"
     },
     {
       "id": "req-2",
       "name": "Get Single User by ID",
       "method": "GET",
       "url": "{{baseUrl}}/users/{{userId}}",
-      "params": [],
+      "params": [
+        {
+          "key": "hhj",
+          "value": "",
+          "enabled": false
+        }
+      ],
       "headers": [
         {
           "key": "Accept",
@@ -85,6 +102,33 @@
           "expected": "",
           "enabled": true
         }
+      ],
+      "pathParams": [
+        {
+          "key": "",
+          "value": "",
+          "enabled": true
+        },
+        {
+          "key": "",
+          "value": "",
+          "enabled": true
+        },
+        {
+          "key": "",
+          "value": "",
+          "enabled": true
+        },
+        {
+          "key": "",
+          "value": "",
+          "enabled": true
+        },
+        {
+          "key": "",
+          "value": "",
+          "enabled": true
+        }
       ]
     },
     {
@@ -105,7 +149,7 @@
         "bearerToken": "{{apiKey}}"
       },
       "bodyType": "json",
-      "body": "{\n  \"title\": \"Automated API Test from Courier\",\n  \"body\": \"Running local-first test suites offline with dynamic uuid {{$guid}}\",\n  \"userId\": 1\n}",
+      "body": "{\n  \"title\": \"Automated API Tefft from Courier\",\n  \"body\": \"Ruaooioog local-first test suites offliooe with dyooamic uuid {{$guid}}\",\n  \"userId\": 1\n}",
       "assertions": [
         {
           "id": "a-5",

@@ -64,3 +64,8 @@ html[data-theme='dark'] {
   font-family: 'JetBrains Mono', monospace;
 }
 
+select option {
+  background: #111114;
+  color: #d4d4d8;
+}
+

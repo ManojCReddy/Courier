@@ -2,33 +2,34 @@ import React, { useState } from 'react';
 import {
   Copy,
   Check,
+  ChevronFirst,
+  ChevronLeft,
+  ChevronRight,
+  ChevronLast,
   Clock,
   HardDrive,
   Terminal,
   CheckCircle2,
   XCircle,
-  AlertTriangle,
-  Sparkles,
-  Stethoscope
+  AlertTriangle
 } from 'lucide-react';
 import { HttpResponse } from '../types';
 
 interface ResponsePanelProps {
   response: HttpResponse | null;
   isLoading: boolean;
-  onDiagnoseWithCopilot?: () => void;
-  onAutoGenerateTests?: () => void;
 }
 
 export const ResponsePanel: React.FC<ResponsePanelProps> = ({
   response,
   isLoading,
-  onDiagnoseWithCopilot,
-  onAutoGenerateTests,
 }) => {
   const [activeTab, setActiveTab] = useState<'body' | 'headers' | 'tests'>('body');
   const [copiedResponse, setCopiedResponse] = useState(false);
-  const [copiedCurl, setCopiedCurl] = useState(false);
+  const [bodySearchOpen, setBodySearchOpen] = useState(false);
+  const [bodySearch, setBodySearch] = useState('');
+  const [bodySearchIndex, setBodySearchIndex] = useState(0);
+  const responseBodyRef = React.useRef<HTMLPreElement>(null);
 
   const getStatusBadge = (status: number) => {
     if (status >= 200 && status < 300) {
@@ -56,16 +57,37 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
     setTimeout(() => setCopiedResponse(false), 2000);
   };
 
-  const handleCopyCurl = () => {
-    if (!response?.curlCommand) return;
-    navigator.clipboard.writeText(response.curlCommand);
-    setCopiedCurl(true);
-    setTimeout(() => setCopiedCurl(false), 2000);
-  };
-
   const formatBytes = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
     return `${(bytes / 1024).toFixed(2)} KB`;
+  };
+
+  const responseBodyText = response
+    ? typeof response.data === 'object'
+      ? JSON.stringify(response.data, null, 2)
+      : String(response.data || 'No content')
+    : '';
+
+  const responseSearchMatches = bodySearch
+    ? responseBodyText.toLowerCase().split(bodySearch.toLowerCase()).length - 1
+    : 0;
+
+  const navigateResponseSearch = (index: number) => {
+    if (responseSearchMatches > 0) {
+      setBodySearchIndex((index + responseSearchMatches) % responseSearchMatches);
+    }
+  };
+
+  const renderResponseBody = () => {
+    if (!bodySearch) return responseBodyText;
+    const parts = responseBodyText.split(new RegExp(`(${bodySearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
+    let matchIndex = 0;
+    return parts.map((part, index) => {
+      if (part.toLowerCase() !== bodySearch.toLowerCase()) return part;
+      const isActive = matchIndex === bodySearchIndex;
+      matchIndex += 1;
+      return <mark key={index} className={`rounded ${isActive ? 'bg-emerald-400/70 text-white' : 'bg-amber-400/40 text-amber-100'}`}>{part}</mark>;
+    });
   };
 
   if (isLoading) {
@@ -124,37 +146,6 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
 
         {/* Quick Action Buttons */}
         <div className="flex items-center gap-2">
-          {response.status >= 400 && onDiagnoseWithCopilot && (
-            <button
-              onClick={onDiagnoseWithCopilot}
-              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 border border-amber-800/80 transition-colors"
-              title="Diagnose error with Chetan"
-            >
-              <Stethoscope className="w-3.5 h-3.5 text-amber-400" />
-              <span>Diagnose Error</span>
-            </button>
-          )}
-
-          {response.status >= 200 && response.status < 400 && onAutoGenerateTests && (
-            <button
-              onClick={onAutoGenerateTests}
-              className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded bg-purple-950/40 hover:bg-purple-900/40 text-purple-300 border border-purple-800/50 transition-colors"
-              title="Auto-generate test assertions with AI"
-            >
-              <Sparkles className="w-3 h-3 text-purple-400" />
-              <span>Gen Tests</span>
-            </button>
-          )}
-
-          <button
-            onClick={handleCopyCurl}
-            className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition-colors"
-            title="Copy as cURL command"
-          >
-            {copiedCurl ? <Check className="w-3 h-3 text-emerald-400" /> : <Terminal className="w-3 h-3 text-zinc-400" />}
-            <span>cURL</span>
-          </button>
-
           <button
             onClick={handleCopyBody}
             className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition-colors"
@@ -216,10 +207,49 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
         {/* BODY TAB */}
         {activeTab === 'body' && (
           <div className="h-full">
-            <pre className="font-mono text-xs text-zinc-200 bg-zinc-950/80 p-4 rounded-lg border border-zinc-800/80 overflow-auto whitespace-pre-wrap leading-relaxed select-text">
-              {typeof response.data === 'object'
-                ? JSON.stringify(response.data, null, 2)
-                : String(response.data || 'No content')}
+            {bodySearchOpen && (
+              <div className="mb-2 flex items-center justify-end">
+                <div className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-[#15151a] p-1.5 shadow-xl">
+                  <input
+                    autoFocus
+                    value={bodySearch}
+                    onChange={(event) => {
+                      setBodySearch(event.target.value);
+                      setBodySearchIndex(0);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        navigateResponseSearch(bodySearchIndex + 1);
+                      }
+                      if (event.key === 'Escape') setBodySearchOpen(false);
+                    }}
+                    placeholder="Find in response body"
+                    className="w-48 rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200 outline-none focus:border-emerald-500"
+                  />
+                  <span className="min-w-[42px] text-center text-[10px] text-zinc-500">{responseSearchMatches ? `${bodySearchIndex + 1}/${responseSearchMatches}` : '0/0'}</span>
+                  <button onClick={() => navigateResponseSearch(0)} className="text-zinc-400 hover:text-zinc-200" title="First match"><ChevronFirst className="h-3.5 w-3.5" /></button>
+                  <button onClick={() => navigateResponseSearch(bodySearchIndex - 1)} className="text-zinc-400 hover:text-zinc-200" title="Previous match"><ChevronLeft className="h-3.5 w-3.5" /></button>
+                  <button onClick={() => navigateResponseSearch(bodySearchIndex + 1)} className="text-zinc-400 hover:text-zinc-200" title="Next match"><ChevronRight className="h-3.5 w-3.5" /></button>
+                  <button onClick={() => navigateResponseSearch(responseSearchMatches - 1)} className="text-zinc-400 hover:text-zinc-200" title="Last match"><ChevronLast className="h-3.5 w-3.5" /></button>
+                  <button onClick={() => setBodySearchOpen(false)} className="px-1 text-zinc-400 hover:text-zinc-200" title="Close find">
+                    ×
+                  </button>
+                </div>
+              </div>
+            )}
+            <pre
+              ref={responseBodyRef}
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+                  event.preventDefault();
+                  setBodySearchOpen(true);
+                }
+              }}
+              className="h-full overflow-auto whitespace-pre-wrap rounded-lg border border-zinc-800/80 bg-zinc-950/80 p-4 font-mono text-xs leading-relaxed text-zinc-200 select-text focus:outline-none"
+            >
+              {renderResponseBody()}
             </pre>
           </div>
         )}
@@ -251,7 +281,7 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
           <div className="space-y-3">
             {totalTestsCount === 0 ? (
               <div className="text-center py-8 text-zinc-500 text-xs italic">
-                No assertions configured for this request. Configure them in the "Test Assertions" tab or click "Gen Tests" to let Courier Copilot write them automatically.
+                No assertions configured for this request. Configure them in the "Test Assertions" tab.
               </div>
             ) : (
               <div className="space-y-2">

@@ -1,5 +1,10 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
+  Check,
+  ChevronFirst,
+  ChevronLeft,
+  ChevronRight,
+  ChevronLast,
   Send,
   Save,
   Plus,
@@ -9,32 +14,254 @@ import {
   Shield,
   KeyRound,
   FileText,
-  SlidersHorizontal,
   FlaskConical,
   Sparkles,
   Terminal,
   Code2
 } from 'lucide-react';
-import { CourierRequest, HttpMethod, AuthType, BodyType, TestAssertion, KeyValuePair } from '../types';
+import { CourierRequest, HttpMethod, AuthType, BodyType, RawBodyFormat, TestAssertion, KeyValuePair } from '../types';
+import { resolveInterpolation } from '../services/environmentScoping';
 
 interface RequestPanelProps {
   request: CourierRequest;
   isLoading: boolean;
-  onUpdateRequest: (updated: CourierRequest) => void;
+  environmentVariables: Record<string, string>;
+  onUpdateEnvironmentVariable: (key: string, value: string) => Promise<void>;
+  onUpdateRequest: (updatedRequest: CourierRequest) => void;
   onSendRequest: () => void;
   onSaveRequest: () => void;
-  onOpenCopilotWithPrompt?: (prompt: string) => void;
 }
 
 export const RequestPanel: React.FC<RequestPanelProps> = ({
   request,
   isLoading,
+  environmentVariables,
+  onUpdateEnvironmentVariable,
   onUpdateRequest,
   onSendRequest,
   onSaveRequest,
-  onOpenCopilotWithPrompt,
 }) => {
   const [activeTab, setActiveTab] = useState<'params' | 'headers' | 'auth' | 'body' | 'tests' | 'script'>('params');
+  const [curlPreviewOpen, setCurlPreviewOpen] = useState(false);
+  const [curlCopied, setCurlCopied] = useState(false);
+  const [bodySearchOpen, setBodySearchOpen] = useState(false);
+  const [bodySearch, setBodySearch] = useState('');
+  const [bodyReplaceOpen, setBodyReplaceOpen] = useState(false);
+  const [bodyReplace, setBodyReplace] = useState('');
+  const [bodySearchIndex, setBodySearchIndex] = useState(0);
+  const bodyTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [hoveredVariable, setHoveredVariable] = useState<{ key: string; type: 'environment' | 'path' } | null>(null);
+  const [variableDraft, setVariableDraft] = useState('');
+  const variableCloseTimerRef = useRef<number | null>(null);
+  const variableSaveTimerRef = useRef<number | null>(null);
+
+  const openVariableEditor = (key: string, type: 'environment' | 'path') => {
+    if (variableCloseTimerRef.current !== null) {
+      window.clearTimeout(variableCloseTimerRef.current);
+    }
+    setHoveredVariable({ key, type });
+    if (type === 'environment') {
+      setVariableDraft(environmentVariables[key] || '');
+    } else {
+      const pathVariable = (request.pathParams || []).find(param => (
+        param.key.replace(/^[:{}]*/, '').replace(/[}]*$/, '') === key
+      ));
+      setVariableDraft(pathVariable?.value || '');
+    }
+  };
+
+  const scheduleVariableEditorClose = () => {
+    variableCloseTimerRef.current = window.setTimeout(() => {
+      setHoveredVariable(null);
+    }, 180);
+  };
+
+  const persistVariableValue = async (
+    variable: { key: string; type: 'environment' | 'path' },
+    value: string
+  ) => {
+    if (variable.type === 'environment') {
+      await onUpdateEnvironmentVariable(variable.key, value);
+    } else {
+      const pathParams = [...(request.pathParams || [])];
+      const pathIndex = pathParams.findIndex(param => (
+        param.key.replace(/^[:{}]*/, '').replace(/[}]*$/, '') === variable.key
+      ));
+      if (pathIndex >= 0) {
+        pathParams[pathIndex] = { ...pathParams[pathIndex], value, enabled: true };
+      } else {
+        pathParams.push({ key: variable.key, value, enabled: true });
+      }
+      updateField('pathParams', pathParams);
+    }
+  };
+
+  const saveVariableDraft = async () => {
+    if (!hoveredVariable) return;
+    await persistVariableValue(hoveredVariable, variableDraft);
+    setHoveredVariable(null);
+  };
+
+  const getBodyMatchStarts = (query: string) => {
+    if (!query) return [];
+    const starts: number[] = [];
+    const body = request.body.toLowerCase();
+    const normalizedQuery = query.toLowerCase();
+    let cursor = 0;
+    while ((cursor = body.indexOf(normalizedQuery, cursor)) >= 0) {
+      starts.push(cursor);
+      cursor += normalizedQuery.length;
+    }
+    return starts;
+  };
+
+  const selectBodyMatch = (query: string, index: number) => {
+    const starts = getBodyMatchStarts(query);
+    if (starts.length > 0) {
+      const nextIndex = (index + starts.length) % starts.length;
+      const nextStart = starts[nextIndex];
+      setBodySearchIndex(nextIndex);
+      bodyTextareaRef.current?.focus();
+      bodyTextareaRef.current?.setSelectionRange(nextStart, nextStart + query.length);
+    }
+  };
+
+  const countBodyMatches = (query: string) => {
+    if (!query) return 0;
+    let count = 0;
+    let cursor = 0;
+    const body = request.body.toLowerCase();
+    const normalizedQuery = query.toLowerCase();
+    while ((cursor = body.indexOf(normalizedQuery, cursor)) >= 0) {
+      count += 1;
+      cursor += normalizedQuery.length;
+    }
+    return count;
+  };
+
+  const getUrlEncodedEntries = (): KeyValuePair[] => {
+    try {
+      const parsed = JSON.parse(request.body);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      // Support older text-form URL-encoded bodies.
+    }
+
+    return request.body
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map(line => {
+        const separator = line.indexOf('=');
+        return {
+          key: separator >= 0 ? line.slice(0, separator) : line,
+          value: separator >= 0 ? line.slice(separator + 1) : '',
+          enabled: true,
+        };
+      });
+  };
+
+  const updateUrlEncodedEntries = (entries: KeyValuePair[]) => {
+    updateField('body', JSON.stringify(entries));
+  };
+
+  const handleBinaryFile = (file?: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => updateField('body', String(reader.result || ''));
+    reader.readAsDataURL(file);
+  };
+
+  const escapeBodySearch = (query: string) => query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  const replaceBodyMatch = () => {
+    const starts = getBodyMatchStarts(bodySearch);
+    if (starts.length === 0) return;
+    const matchStart = starts[Math.min(bodySearchIndex, starts.length - 1)];
+    const updatedBody = `${request.body.slice(0, matchStart)}${bodyReplace}${request.body.slice(matchStart + bodySearch.length)}`;
+    updateField('body', updatedBody);
+    setTimeout(() => selectBodyMatch(bodySearch, bodySearchIndex), 0);
+  };
+
+  const replaceAllBodyMatches = () => {
+    if (!bodySearch) return;
+    updateField('body', request.body.replace(new RegExp(escapeBodySearch(bodySearch), 'gi'), bodyReplace));
+    setBodySearchIndex(0);
+  };
+
+  const handleVariableDraftChange = (value: string) => {
+    setVariableDraft(value);
+    if (!hoveredVariable) return;
+    if (variableSaveTimerRef.current !== null) {
+      window.clearTimeout(variableSaveTimerRef.current);
+    }
+    const variable = hoveredVariable;
+    variableSaveTimerRef.current = window.setTimeout(() => {
+      void persistVariableValue(variable, value);
+    }, 250);
+  };
+
+  const quoteCurlValue = (value: string) => `'${value.replace(/'/g, "'\\''")}'`;
+  const resolveValue = (value: string) => resolveInterpolation(value, environmentVariables);
+
+  const buildCurlCommand = () => {
+    let requestUrl = resolveValue(request.url);
+
+    (request.pathParams || [])
+      .filter(param => param.enabled && param.key)
+      .forEach(param => {
+        const key = param.key.replace(/^[:{}]*/, '').replace(/[}]*$/, '');
+        const value = resolveValue(param.value || '');
+        requestUrl = requestUrl
+          .replace(new RegExp(`:${key}\\b`, 'g'), value)
+          .replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+      });
+
+    const queryParams = request.params
+      .filter(param => param.enabled && param.key)
+      .map(param => `${encodeURIComponent(resolveValue(param.key))}=${encodeURIComponent(resolveValue(param.value))}`)
+      .join('&');
+
+    if (queryParams) {
+      requestUrl += `${requestUrl.includes('?') ? '&' : '?'}${queryParams}`;
+    }
+
+    const command = [`curl --request ${request.method} ${quoteCurlValue(requestUrl)}`];
+
+    request.headers
+      .filter(header => header.enabled && header.key)
+      .forEach(header => {
+        command.push(`  --header ${quoteCurlValue(`${resolveValue(header.key)}: ${resolveValue(header.value)}`)}`);
+      });
+
+    if (request.auth.type === 'bearer' && request.auth.bearerToken) {
+      command.push(`  --header ${quoteCurlValue(`Authorization: Bearer ${resolveValue(request.auth.bearerToken)}`)}`);
+    } else if (request.auth.type === 'basic') {
+      command.push(`  --user ${quoteCurlValue(`${resolveValue(request.auth.basicUsername || '')}:${resolveValue(request.auth.basicPassword || '')}`)}`);
+    } else if (request.auth.type === 'apiKey' && request.auth.apiKeyName && request.auth.apiKeyValue) {
+      const apiKeyName = resolveValue(request.auth.apiKeyName);
+      const apiKeyValue = resolveValue(request.auth.apiKeyValue);
+      if (request.auth.apiKeyPlacement === 'query') {
+        const separator = requestUrl.includes('?') ? '&' : '?';
+        command[0] = `curl --request ${request.method} ${quoteCurlValue(`${requestUrl}${separator}${encodeURIComponent(apiKeyName)}=${encodeURIComponent(apiKeyValue)}`)}`;
+      } else {
+        command.push(`  --header ${quoteCurlValue(`${apiKeyName}: ${apiKeyValue}`)}`);
+      }
+    }
+
+    if (request.bodyType === 'urlencoded') {
+      if (request.body) command.push(`  --data-urlencode ${quoteCurlValue(resolveValue(request.body))}`);
+    } else if (request.bodyType !== 'none' && request.body) {
+      command.push(`  --data-raw ${quoteCurlValue(resolveValue(request.body))}`);
+    }
+
+    return command.join(' \\\n');
+  };
+
+  const handleCopyCurl = async () => {
+    await navigator.clipboard.writeText(buildCurlCommand());
+    setCurlCopied(true);
+    window.setTimeout(() => setCurlCopied(false), 2000);
+  };
 
   const updateField = <K extends keyof CourierRequest>(key: K, value: CourierRequest[K]) => {
     onUpdateRequest({ ...request, [key]: value });
@@ -50,11 +277,14 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
     
     // Auto-detect URI/Path parameters like :id or {id}
     const colonMatches = Array.from(newUrl.matchAll(/:([a-zA-Z0-9_]+)/g)).map(m => m[1]);
-    const braceMatches = Array.from(newUrl.matchAll(/\{([a-zA-Z0-9_]+)\}/g)).map(m => m[1]);
+    const braceMatches = Array.from(newUrl.matchAll(/(?<!\{)\{([a-zA-Z0-9_]+)\}(?!\})/g)).map(m => m[1]);
     const detectedKeys = Array.from(new Set([...colonMatches, ...braceMatches]));
 
     let currentPathParams = request.pathParams || [];
-    let updatedPathParams = [...currentPathParams];
+    let updatedPathParams = currentPathParams.filter(param => {
+      const key = param.key.replace(/^[:{}]*/, '').replace(/[}]*$/, '');
+      return detectedKeys.includes(key) || !environmentVariables[key];
+    });
 
     detectedKeys.forEach(k => {
       if (!updatedPathParams.some(p => p.key === k)) {
@@ -64,6 +294,79 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
 
     onUpdateRequest({ ...request, url: newUrl, pathParams: updatedPathParams });
   };
+
+  const urlVariables = Array.from(request.url.matchAll(/\{\{([^{}]+)\}\}/g))
+    .map(match => match[1].trim())
+    .filter((key, index, keys) => keys.indexOf(key) === index);
+  const renderUrlValue = () => {
+    const parts: React.ReactNode[] = [];
+    const pattern = /\{\{([^{}]+)\}\}|:([a-zA-Z0-9_]+)|(?<!\{)\{([a-zA-Z0-9_]+)\}(?!\})/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = pattern.exec(request.url)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(request.url.slice(lastIndex, match.index));
+      }
+
+      const type = match[1] ? 'environment' : 'path';
+      const key = (match[1] || match[2] || match[3]).trim();
+      const pathVariable = (request.pathParams || []).find(param => (
+        param.key.replace(/^[:{}]*/, '').replace(/[}]*$/, '') === key
+      ));
+      const resolvedValue = type === 'environment'
+        ? resolveValue(match[0])
+        : pathVariable?.value || match[0];
+      const isResolved = resolvedValue !== match[0] && resolvedValue !== '';
+      parts.push(
+        <span
+          key={`${key}-${match.index}`}
+          className={`pointer-events-auto relative inline-block cursor-help rounded px-0.5 ${
+            isResolved ? 'text-emerald-300 underline decoration-dotted' : 'text-amber-300 underline decoration-wavy'
+          }`}
+          onMouseEnter={() => openVariableEditor(key, type)}
+          onMouseLeave={scheduleVariableEditorClose}
+          onMouseDown={(event) => event.preventDefault()}
+        >
+          {match[0]}
+          {hoveredVariable?.key === key && hoveredVariable.type === type && (
+            <span
+              className="absolute left-0 top-full z-50 mt-1 w-80 rounded-xl border border-zinc-700 bg-[#15151a] p-2 text-left normal-case no-underline shadow-2xl"
+              onMouseEnter={() => openVariableEditor(key, type)}
+              onMouseLeave={scheduleVariableEditorClose}
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <input
+                autoFocus
+                value={variableDraft}
+                onChange={(event) => handleVariableDraftChange(event.target.value)}
+                onBlur={() => void saveVariableDraft()}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') void saveVariableDraft();
+                }}
+                placeholder="Enter variable value"
+                className="w-full rounded-lg border border-zinc-600 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-emerald-500"
+              />
+            </span>
+          )}
+        </span>
+      );
+      lastIndex = pattern.lastIndex;
+    }
+
+    if (lastIndex < request.url.length) {
+      parts.push(request.url.slice(lastIndex));
+    }
+
+    return parts;
+  };
+  const visiblePathParams = (request.pathParams || [])
+    .map((param, index) => ({ param, index }))
+    .filter(({ param }) => {
+      const key = param.key.trim().replace(/^[:{}]*/, '').replace(/[}]*$/, '');
+      return new RegExp(`:${key}\\b`).test(request.url)
+        || new RegExp(`(?<!\\{)\\{${key}\\}(?!\\})`).test(request.url);
+    });
 
   // Query Params
   const addParam = () => {
@@ -122,9 +425,53 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
   };
 
   // Body
-  const handleBodyTypeChange = (bodyType: BodyType) => {
-    updateField('bodyType', bodyType);
+  const getRawStarterBody = (format: RawBodyFormat) => {
+    switch (format) {
+      case 'javascript': return '// JavaScript request body\n';
+      case 'json': return '{}';
+      case 'html': return '<!doctype html>\n<html>\n  <body></body>\n</html>';
+      case 'xml': return '<root></root>';
+      default: return '';
+    }
   };
+
+  const handleBodyTypeChange = (bodyType: BodyType) => {
+    onUpdateRequest({
+      ...request,
+      bodyType,
+      ...(bodyType === 'raw' ? { body: '', rawFormat: 'text' as RawBodyFormat } : {}),
+    });
+  };
+
+  const handleRawFormatChange = (rawFormat: RawBodyFormat) => {
+    onUpdateRequest({
+      ...request,
+      bodyType: 'raw',
+      rawFormat,
+      body: getRawStarterBody(rawFormat),
+    });
+  };
+
+  const currentRawFormat: RawBodyFormat = request.rawFormat
+    || (request.bodyType === 'json' ? 'json' : request.bodyType === 'xml' ? 'xml' : 'text');
+  const bodyTypeLabels: Record<BodyType, string> = {
+    none: 'none',
+    formdata: 'form-data',
+    urlencoded: 'x-www-form-urlencoded',
+    raw: 'raw',
+    binary: 'binary',
+    json: 'raw',
+    xml: 'raw',
+  };
+  const bodyPlaceholder = currentRawFormat === 'json'
+    ? '{\n  "title": "My Post",\n  "userId": 1\n}'
+    : currentRawFormat === 'xml'
+      ? '<user><name>Ada</name></user>'
+      : currentRawFormat === 'html'
+        ? '<h1>Hello</h1>'
+        : currentRawFormat === 'javascript'
+          ? 'const payload = { hello: "world" };'
+          : '';
 
   const formatJsonBody = () => {
     try {
@@ -132,6 +479,41 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
       updateField('body', JSON.stringify(parsed, null, 2));
     } catch {
       alert('Invalid JSON: Unable to format');
+    }
+  };
+
+  const formatRawBody = () => {
+    if (!request.body.trim()) return;
+
+    try {
+      if (currentRawFormat === 'json') {
+        updateField('body', JSON.stringify(JSON.parse(request.body), null, 2));
+        return;
+      }
+
+      if (currentRawFormat === 'xml' || currentRawFormat === 'html') {
+        const formatted = request.body
+          .replace(/>\s*</g, '><')
+          .replace(/></g, '>\n<')
+          .split('\n')
+          .reduce((lines: string[], line) => {
+            const trimmed = line.trim();
+            if (!trimmed) return lines;
+            const closingTag = trimmed.startsWith('</');
+            const currentIndent = Math.max(0, lines.length ? (lines[lines.length - 1].match(/^\s*/)?.[0].length || 0) / 2 + (closingTag ? -1 : 0) : 0);
+            lines.push(`${'  '.repeat(currentIndent)}${trimmed}`);
+            return lines;
+          }, [])
+          .join('\n');
+        updateField('body', formatted);
+        return;
+      }
+
+      if (currentRawFormat === 'javascript') {
+        updateField('body', request.body.replace(/;\s*/g, ';\n').replace(/\{\s*/g, '{\n').replace(/\s*\}/g, '\n}').trim());
+      }
+    } catch {
+      alert(`Unable to beautify ${currentRawFormat.toUpperCase()} body`);
     }
   };
 
@@ -179,6 +561,15 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
 
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setCurlPreviewOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium border transition-colors"
+            style={{ background: 'var(--app-surface-soft)', borderColor: 'var(--app-border)', color: 'var(--text-primary)' }}
+            title="View generated cURL command"
+          >
+            <Code2 className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
+            <span>cURL</span>
+          </button>
+          <button
             onClick={onSaveRequest}
             className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium border transition-colors"
             style={{ background: 'var(--app-surface-soft)', borderColor: 'var(--app-border)', color: 'var(--text-primary)' }}
@@ -189,6 +580,54 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
           </button>
         </div>
       </div>
+
+      {curlPreviewOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="curl-preview-title">
+          <div className="w-full max-w-3xl overflow-hidden rounded-xl border border-zinc-800 bg-[#15151a] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
+              <div>
+                <h3 id="curl-preview-title" className="text-sm font-semibold text-zinc-100">Generated cURL</h3>
+                <p className="text-[11px] text-zinc-400">Inspect or copy the command for this request.</p>
+              </div>
+              <button
+                onClick={() => setCurlPreviewOpen(false)}
+                className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                title="Close cURL preview"
+                aria-label="Close cURL preview"
+              >
+                <span className="text-lg leading-none">&times;</span>
+              </button>
+            </div>
+
+            <div className="p-4">
+              <textarea
+                value={buildCurlCommand()}
+                readOnly
+                onFocus={(event) => event.currentTarget.select()}
+                className="h-64 w-full resize-y rounded-lg border border-zinc-800 bg-zinc-950 p-3 font-mono text-xs leading-relaxed text-zinc-200 focus:outline-none focus:border-emerald-500"
+                spellCheck={false}
+                aria-label="Generated cURL command"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-zinc-800 bg-[#121216] px-4 py-3">
+              <button
+                onClick={() => setCurlPreviewOpen(false)}
+                className="rounded-lg px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+              >
+                Close
+              </button>
+              <button
+                onClick={handleCopyCurl}
+                className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
+              >
+                {curlCopied ? <Check className="h-3.5 w-3.5" /> : <Code2 className="h-3.5 w-3.5" />}
+                <span>{curlCopied ? 'Copied' : 'Copy cURL'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Address Bar */}
       <div className="p-4 pb-3 flex items-center gap-2">
@@ -220,9 +659,17 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
               }
             }}
             placeholder="https://api.example.com/v1/resource or {{baseUrl}}/resource"
-            className="w-full rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-emerald-500 transition-colors"
-            style={{ background: 'var(--app-surface-soft)', border: '1px solid var(--app-border)', color: 'var(--text-primary)' }}
+            className={`w-full rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-emerald-500 transition-colors ${request.url ? 'text-transparent caret-zinc-200' : ''}`}
+            style={{ background: 'var(--app-surface-soft)', border: '1px solid var(--app-border)', color: request.url ? 'transparent' : 'var(--text-primary)' }}
           />
+          {request.url && urlVariables.length > 0 && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre px-3 py-2 text-xs font-mono text-zinc-200"
+            >
+              {renderUrlValue()}
+            </div>
+          )}
         </div>
 
         {/* Send Button */}
@@ -374,7 +821,7 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-800/60 bg-zinc-950/40 font-mono">
-                    {(request.pathParams || []).map((p, idx) => (
+                    {visiblePathParams.map(({ param: p, index: idx }) => (
                       <tr key={idx} className="hover:bg-zinc-900/40">
                         <td className="p-2 text-center">
                           <input
@@ -412,7 +859,7 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
                         </td>
                       </tr>
                     ))}
-                    {(!request.pathParams || request.pathParams.length === 0) && (
+                    {visiblePathParams.length === 0 && (
                       <tr>
                         <td colSpan={4} className="p-3 text-center text-zinc-500 italic">
                           No path variables detected. Use <code className="text-emerald-400">:id</code> or <code className="text-emerald-400">{'{id}'}</code> in the URL to automatically create path parameters.
@@ -688,41 +1135,156 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
           <div className="flex flex-col h-full space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 text-xs">
-                {(['none', 'json', 'raw'] as BodyType[]).map((type) => (
-                  <label key={type} className="flex items-center gap-1.5 cursor-pointer text-zinc-300 capitalize">
+                {(['none', 'formdata', 'urlencoded', 'raw', 'binary'] as BodyType[]).map((type) => (
+                  <label key={type} className="flex items-center gap-1.5 cursor-pointer text-zinc-300">
                     <input
                       type="radio"
                       name="bodyType"
                       value={type}
-                      checked={request.bodyType === type}
+                      checked={type === 'raw'
+                        ? request.bodyType === 'raw' || request.bodyType === 'json' || request.bodyType === 'xml'
+                        : request.bodyType === type}
                       onChange={() => handleBodyTypeChange(type)}
                       className="text-emerald-500 focus:ring-0"
                     />
-                    {type === 'none' ? 'No Body' : type.toUpperCase()}
+                    {bodyTypeLabels[type].toLowerCase()}
                   </label>
                 ))}
+                {(request.bodyType === 'raw' || request.bodyType === 'json' || request.bodyType === 'xml') && (
+                  <select
+                    value={currentRawFormat}
+                    onChange={(event) => handleRawFormatChange(event.target.value as RawBodyFormat)}
+                    className="rounded bg-transparent px-1 text-xs text-zinc-300 outline-none"
+                    aria-label="Raw body format"
+                  >
+                    <option className="bg-zinc-950 text-zinc-200" value="text">Text</option>
+                    <option className="bg-zinc-950 text-zinc-200" value="javascript">JavaScript</option>
+                    <option className="bg-zinc-950 text-zinc-200" value="json">JSON</option>
+                    <option className="bg-zinc-950 text-zinc-200" value="html">HTML</option>
+                    <option className="bg-zinc-950 text-zinc-200" value="xml">XML</option>
+                  </select>
+                )}
               </div>
 
-              {request.bodyType === 'json' && (
+              {(request.bodyType === 'json' || (request.bodyType === 'raw' && currentRawFormat !== 'text')) && (
                 <button
-                  onClick={formatJsonBody}
+                  onClick={request.bodyType === 'json' ? formatJsonBody : formatRawBody}
                   className="flex items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 px-2.5 py-1 rounded transition-colors"
-                  title="Beautify JSON formatting"
+                  title={`Beautify ${currentRawFormat.toUpperCase()} body`}
                 >
                   <Wand2 className="w-3 h-3 text-emerald-400" />
-                  Format JSON
+                  Beautify
                 </button>
               )}
             </div>
 
-            {request.bodyType !== 'none' && (
-              <textarea
-                value={request.body}
-                onChange={(e) => updateField('body', e.target.value)}
-                placeholder={request.bodyType === 'json' ? '{\n  "title": "My Post",\n  "userId": 1\n}' : 'Raw payload...'}
-                className="w-full flex-1 min-h-[220px] bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs font-mono text-zinc-200 focus:outline-none focus:border-zinc-700 resize-none leading-relaxed"
-                spellCheck={false}
-              />
+            {(request.bodyType === 'urlencoded' || request.bodyType === 'formdata') && (
+              <div className="flex-1 min-h-[220px] space-y-2">
+                <div className="text-[11px] text-zinc-500">Each enabled row becomes one {request.bodyType === 'formdata' ? 'multipart' : 'URL-encoded'} form field.</div>
+                <div className="overflow-hidden rounded-lg border border-zinc-800">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b border-zinc-800 bg-zinc-900 text-zinc-400">
+                      <tr><th className="p-2 w-8"></th><th className="p-2">Key</th><th className="p-2">Value</th><th className="p-2 w-8"></th></tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800/60 bg-zinc-950/40">
+                      {getUrlEncodedEntries().map((entry, index) => (
+                        <tr key={index}>
+                          <td className="p-2 text-center"><input type="checkbox" checked={entry.enabled} onChange={(event) => {
+                            const entries = getUrlEncodedEntries();
+                            entries[index] = { ...entries[index], enabled: event.target.checked };
+                            updateUrlEncodedEntries(entries);
+                          }} /></td>
+                          <td className="p-2"><input value={entry.key} onChange={(event) => {
+                            const entries = getUrlEncodedEntries();
+                            entries[index] = { ...entries[index], key: event.target.value };
+                            updateUrlEncodedEntries(entries);
+                          }} placeholder="key" className="w-full bg-transparent text-zinc-200 outline-none" /></td>
+                          <td className="p-2"><input value={entry.value} onChange={(event) => {
+                            const entries = getUrlEncodedEntries();
+                            entries[index] = { ...entries[index], value: event.target.value };
+                            updateUrlEncodedEntries(entries);
+                          }} placeholder="value" className="w-full bg-transparent text-zinc-200 outline-none" /></td>
+                          <td className="p-2 text-center"><button onClick={() => updateUrlEncodedEntries(getUrlEncodedEntries().filter((_, rowIndex) => rowIndex !== index))} className="text-zinc-500 hover:text-rose-400"><Trash2 className="h-3.5 w-3.5" /></button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <button onClick={() => updateUrlEncodedEntries([...getUrlEncodedEntries(), { key: '', value: '', enabled: true }])} className="text-xs text-emerald-400 hover:text-emerald-300">+ Add field</button>
+              </div>
+            )}
+
+            {request.bodyType === 'binary' && (
+              <div className="flex-1 min-h-[220px] rounded-lg border border-dashed border-zinc-700 bg-zinc-950/50 p-6">
+                <label className="flex h-full cursor-pointer flex-col items-center justify-center gap-2 text-xs text-zinc-400 hover:text-zinc-200">
+                  <span className="text-emerald-400">Choose binary file</span>
+                  <span className="text-[11px] text-zinc-500">Courier stores the selected file as request data for this request.</span>
+                  <input type="file" className="hidden" onChange={(event) => handleBinaryFile(event.target.files?.[0])} />
+                </label>
+                {request.body && <div className="mt-3 text-center text-[10px] text-emerald-400">Binary payload selected</div>}
+              </div>
+            )}
+
+            {request.bodyType !== 'none' && request.bodyType !== 'urlencoded' && request.bodyType !== 'formdata' && request.bodyType !== 'binary' && (
+              <div className="relative flex-1 min-h-[220px]">
+                {bodySearchOpen && (
+                  <div className="absolute right-2 top-2 z-10 rounded-lg border border-zinc-700 bg-[#15151a] p-1.5 shadow-xl">
+                    <div className="flex items-center gap-2">
+                      <input
+                        autoFocus
+                        value={bodySearch}
+                        onChange={(event) => {
+                          setBodySearch(event.target.value);
+                          setBodySearchIndex(0);
+                          selectBodyMatch(event.target.value, 0);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            selectBodyMatch(bodySearch, bodySearchIndex + 1);
+                          }
+                          if (event.key === 'Escape') setBodySearchOpen(false);
+                        }}
+                        placeholder="Find in request body"
+                        className="w-48 rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200 outline-none focus:border-emerald-500"
+                      />
+                      <span className="min-w-[42px] text-center text-[10px] text-zinc-500">{countBodyMatches(bodySearch) ? `${bodySearchIndex + 1}/${countBodyMatches(bodySearch)}` : '0/0'}</span>
+                      <button onClick={() => setBodyReplaceOpen(open => !open)} className="text-[10px] text-zinc-400 hover:text-zinc-200" title="Toggle replace">Replace</button>
+                      <button onClick={() => selectBodyMatch(bodySearch, 0)} className="text-zinc-400 hover:text-zinc-200" title="First match"><ChevronFirst className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => selectBodyMatch(bodySearch, bodySearchIndex - 1)} className="text-zinc-400 hover:text-zinc-200" title="Previous match"><ChevronLeft className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => selectBodyMatch(bodySearch, bodySearchIndex + 1)} className="text-zinc-400 hover:text-zinc-200" title="Next match"><ChevronRight className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => selectBodyMatch(bodySearch, countBodyMatches(bodySearch) - 1)} className="text-zinc-400 hover:text-zinc-200" title="Last match"><ChevronLast className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => setBodySearchOpen(false)} className="px-1 text-zinc-400 hover:text-zinc-200" title="Close find">×</button>
+                    </div>
+                    {bodyReplaceOpen && (
+                      <div className="mt-1 flex items-center gap-2 border-t border-zinc-800 pt-1.5">
+                        <input
+                          value={bodyReplace}
+                          onChange={(event) => setBodyReplace(event.target.value)}
+                          placeholder="Replace with"
+                          className="w-48 rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200 outline-none focus:border-emerald-500"
+                        />
+                        <button onClick={replaceBodyMatch} className="text-[10px] text-zinc-400 hover:text-zinc-200">Replace</button>
+                        <button onClick={replaceAllBodyMatches} className="text-[10px] text-zinc-400 hover:text-zinc-200">Replace All</button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <textarea
+                  ref={bodyTextareaRef}
+                  value={request.body}
+                  onChange={(e) => updateField('body', e.target.value)}
+                  onKeyDown={(event) => {
+                    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+                      event.preventDefault();
+                      setBodySearchOpen(true);
+                    }
+                  }}
+                  placeholder={bodyPlaceholder}
+                  className="h-full w-full rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-xs font-mono text-zinc-200 focus:outline-none focus:border-zinc-700 resize-none leading-relaxed"
+                  spellCheck={false}
+                />
+              </div>
             )}
           </div>
         )}
@@ -846,7 +1408,7 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
                   {request.assertions.length === 0 && (
                     <tr>
                       <td colSpan={5} className="p-4 text-center text-zinc-500 italic">
-                        No test assertions added yet. Click one of the presets above or use Courier Copilot to auto-generate them!
+                        No test assertions added yet. Click one of the presets above to add one.
                       </td>
                     </tr>
                   )}

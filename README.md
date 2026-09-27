@@ -1,11 +1,25 @@
 # Courier 🚀
-### Local-First, Git-Native API Workbench & Test Suite with "Chetan" (AI Companion)
+### Local-First, Git-Native API Workbench & Test Suite
 
 > **Enterprise-Ready, 100% Air-Gapped & Telemetry-Free Postman/Bruno Alternative**
 
 Postman and Bruno's mandatory cloud sync, account requirements, and deprecation of the offline scratchpad created severe security and compliance liabilities for developers, healthcare systems, defense contractors, and fintechs.
 
-**Courier** is built from the ground up for developers who demand complete data privacy, lightning-fast execution, and seamless Git-native version control — combined with a next-generation AI companion named **Chetan** supporting **Local Ollama (`qwen2.5-coder:7b`)**, **Google AI (Gemini)**, and offline smart heuristics.
+**Courier** is built for developers who demand complete data privacy, lightning-fast execution, and seamless Git-native version control. The core tool has no account, telemetry, or AI service requirement.
+
+## Version 0.2.0
+
+Courier 0.2 focuses on a faster, more intuitive request workflow:
+
+- Inline hover editing for environment variables and URI path variables, with automatic persistence.
+- Generated cURL preview with resolved request values before execution.
+- A-Z/Z-A sorting for collections and requests inside each collection.
+- Safer variable scoping that keeps `{{environmentVariables}}` separate from `:pathVariables` and `{pathVariables}`.
+- Postman-style body controls with `none`, `form-data`, `x-www-form-urlencoded`, `raw`, and `binary` modes.
+- Raw body formats for Text, JavaScript, JSON, HTML, and XML, with format-aware starter content and Beautify actions.
+- Body-scoped `Ctrl+F` search with first, previous, next, last, Replace, and Replace All controls.
+- Request code snippet generation for sharing and documentation.
+- Chetan AI remains disabled by default so Courier stays lightweight and AI-independent.
 
 ---
 
@@ -16,9 +30,12 @@ Postman and Bruno's mandatory cloud sync, account requirements, and deprecation 
 - **Query Params & Headers Editor**: Key-value tables with auto-complete and instant toggle checkboxes.
 - **URI / Path Variables**: Auto-detects `:param` and `{param}` directly from URL paths.
 - **Auth Presets**: Bearer Token, Basic Auth (`user:pass`), and API Key (Header or Query).
-- **Body Formats**: JSON (with Beautify/formatting & syntax linting), `x-www-form-urlencoded`, Raw Text, or None.
+- **Body Formats**: Postman-style `none`, `form-data`, `x-www-form-urlencoded`, `raw`, and `binary` modes. Raw supports Text, JavaScript, JSON, HTML, XML, and Beautify actions.
 - **Quick cURL Importer**: Paste any raw `curl` snippet (from Chrome DevTools or docs) to instantly populate the workbench.
-- **1-Click Actions**: "Copy as cURL" and "Copy Response".
+- **Generated cURL Preview**: Inspect and copy the current request as cURL before sending it.
+- **Scoped Body Search**: Search request and response bodies without invoking global browser search; request bodies also support Replace and Replace All.
+- **Code Snippets**: Generate request snippets for sharing in common client formats.
+- **1-Click Actions**: Copy the response body and save request changes.
 
 ### 2. 📁 Git-Native Local Storage
 - **Zero Cloud Lock-in**: All collections and environments are stored directly on your local filesystem in `./courier-data/collections/` and `./courier-data/environments/` as clean, readable JSON files.
@@ -48,6 +65,7 @@ Courier features a hierarchical variable resolution engine that searches and res
   - `{{$randomEmail}}`: Random user email for automated signup testing.
   - `{{$randomInt}}`: Random integer from 0 to 10,000.
 - **Secret Masking**: Sensitive tokens and passwords stay protected with eye toggles.
+- **Inline Variable Editing**: Hover over a variable in the URL to edit its value and save it automatically.
 
 ### 4. 📜 User-Friendly Post-Response Scripting Engine
 Courier includes a sandboxed, zero-friction scripting runtime inside the **Script** tab of every request. Migrating from Postman or Bruno is seamless with readable, modern assertion syntax:
@@ -84,17 +102,10 @@ pm.globals.set("apiBase", "https://api.example.com");  // maps to setGlobalEnv
 - **Script Logs Inspection**: The response panel displays a dedicated **Script Assertions & Logs** view showing passed assertions, failed checks, and `console.log()` statements.
 - **Suite Runner Modal**: Execute an entire collection sequentially in the browser with live progress, latency metrics, and pass/fail reports with tiered variable inheritance.
 
-### 6. 🤖 Chetan (AI Companion)
-Courier includes an integrated, local-first AI assistant named **Chetan** that gives you an edge over Postman and Bruno:
-- **Local Ollama (`qwen2.5-coder:7b`)**: Connects directly to local Ollama (`http://127.0.0.1:11434`) — **100% offline, air-gapped, and zero bytes leave your computer**. Includes built-in connection verification.
-- **Google AI Mode (Gemini 2.5 Flash / 1.5 Pro)**: High-speed, high-accuracy semantic reasoning via Gemini BYOK.
-- **OpenAI BYOK (`gpt-4o-mini`)**: Full OpenAI ChatGPT compatibility.
-- **Offline Smart Engine**: Built-in intelligent rule heuristics that work immediately without any API key or external service!
-- **Core Chetan Capabilities**:
-  - ✨ **Prompt-to-Request**: Type *"Create a POST request for user signup with email and password"* to generate a complete request.
-  - 🧪 **Auto-Generate Test Assertions**: Click *"Gen Tests"* on any response to have Chetan analyze the payload and write targeted assertions.
-  - 🩺 **AI Error Diagnoser**: Click *"Diagnose Error"* on 4xx/5xx responses for root-cause analysis and 1-click remediation.
-  - 📐 **Responsive Sidebar & Window Controls**: Minimize into an icon strip, expand to 50% width for deep code analysis, or toggle side-by-side vs stacked layouts.
+### 6. 🧩 Optional User-Owned AI
+The integrated Chetan assistant is disabled in the lightweight Courier build. Courier does not call Gemini, OpenAI, Ollama, or any other AI service by default.
+
+If AI support is added later, it should connect only to an LLM endpoint and model selected and operated by the user. API testing, assertions, scripting, and the CLI runner work independently without AI.
 
 ### 7. 💻 Headless CLI Runner for CI/CD
 Run your test suites in GitHub Actions, GitLab CI, Jenkins, or Docker without launching the GUI:
@@ -108,7 +119,7 @@ node server/cli.js run ./courier-data/collections/col-sample-1.json --env Develo
 
 ### Prerequisites
 - Node.js v18+ (Node.js v22 LTS is recommended).
-- Optional: [Ollama](https://ollama.com/) with `qwen2.5-coder:7b` for local air-gapped AI (`ollama run qwen2.5-coder:7b`).
+- No AI service is required. Courier's core request and test workflows run independently.
 
 ### Setup
 ```bash

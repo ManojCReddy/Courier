@@ -6,7 +6,6 @@ import { fileURLToPath } from 'url';
 import { initStorage, getCollections, saveCollection, deleteCollection, getEnvironments, saveEnvironment, deleteEnvironment } from './services/storageService.js';
 import { executeHttpRequest } from './services/httpExecutor.js';
 import { parseCurl } from './services/curlParser.js';
-import { processCopilotChat } from './services/copilotService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,7 +29,7 @@ initStorage();
 
 // Health Check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', name: 'Courier Local API Server', version: '0.1.1' });
+  res.json({ status: 'ok', name: 'Courier Local API Server', version: '0.2.0' });
 });
 
 // HTTP Request Execution
@@ -111,17 +110,6 @@ app.post('/api/curl/parse', (req, res) => {
     res.json(parsed);
   } catch (err) {
     res.status(400).json({ error: err.message });
-  }
-});
-
-// Courier Copilot AI Assistant
-app.post('/api/copilot/chat', async (req, res) => {
-  try {
-    const { messages, mode, context, config } = req.body;
-    const result = await processCopilotChat({ messages, mode, context, config });
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
   }
 });
 
