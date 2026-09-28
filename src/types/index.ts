@@ -21,6 +21,7 @@ export interface AuthConfig {
 
 export type BodyType = 'none' | 'json' | 'xml' | 'raw' | 'urlencoded' | 'formdata' | 'binary';
 export type RawBodyFormat = 'text' | 'javascript' | 'json' | 'html' | 'xml';
+export type BodyDraftKey = Exclude<BodyType, 'raw' | 'xml'> | `raw:${RawBodyFormat}`;
 
 export type AssertionType =
   | 'STATUS_CODE_EQUALS'
@@ -60,6 +61,7 @@ export interface CourierRequest {
   bodyType: BodyType;
   rawFormat?: RawBodyFormat;
   body: string;
+  bodyDrafts?: Partial<Record<BodyDraftKey, string>>;
   assertions: TestAssertion[];
   /** Optional post-response script (JS). Runs after every successful send. */
   script?: string;

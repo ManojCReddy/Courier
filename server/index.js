@@ -29,7 +29,7 @@ initStorage();
 
 // Health Check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', name: 'Courier Local API Server', version: '0.2.1' });
+  res.json({ status: 'ok', name: 'Courier Local API Server', version: '0.2.2' });
 });
 
 // HTTP Request Execution

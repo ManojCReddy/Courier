@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Check,
   ChevronFirst,
@@ -19,7 +19,7 @@ import {
   Terminal,
   Code2
 } from 'lucide-react';
-import { CourierRequest, HttpMethod, AuthType, BodyType, RawBodyFormat, TestAssertion, KeyValuePair } from '../types';
+import { CourierRequest, HttpMethod, AuthType, BodyType, BodyDraftKey, RawBodyFormat, TestAssertion, KeyValuePair } from '../types';
 import { resolveInterpolation } from '../services/environmentScoping';
 
 interface RequestPanelProps {
@@ -435,26 +435,63 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
     }
   };
 
+  const getBodyDraftKey = (bodyType: BodyType, rawFormat: RawBodyFormat): BodyDraftKey => {
+    if (bodyType === 'json' || ((bodyType === 'raw' || bodyType === 'xml') && rawFormat === 'json')) {
+      return 'json';
+    }
+    if (bodyType === 'raw' || bodyType === 'xml') {
+      return `raw:${rawFormat}`;
+    }
+    return bodyType;
+  };
+
+  const getBodyStarter = (bodyType: BodyType, rawFormat: RawBodyFormat) => {
+    if (bodyType === 'json') return '{}';
+    if (bodyType === 'raw' || bodyType === 'xml') return getRawStarterBody(rawFormat);
+    return '';
+  };
+
   const handleBodyTypeChange = (bodyType: BodyType) => {
+    const bodyDrafts = {
+      ...request.bodyDrafts,
+      [getBodyDraftKey(request.bodyType, currentRawFormat)]: request.body,
+    };
+    const nextRawFormat: RawBodyFormat = bodyType === 'xml'
+      ? 'xml'
+      : bodyType === 'raw'
+        ? request.rawFormat && request.rawFormat !== 'json'
+          ? request.rawFormat
+          : request.bodyType === 'xml' ? 'xml' : 'text'
+        : currentRawFormat;
+    const nextDraftKey = getBodyDraftKey(bodyType, nextRawFormat);
+
     onUpdateRequest({
       ...request,
       bodyType,
-      ...(bodyType === 'json' && !request.body.trim() ? { body: '{}' } : {}),
-      ...(bodyType === 'raw' ? { body: '', rawFormat: 'text' as RawBodyFormat } : {}),
+      body: bodyDrafts[nextDraftKey] ?? getBodyStarter(bodyType, nextRawFormat),
+      bodyDrafts,
+      ...(bodyType === 'raw' ? { rawFormat: nextRawFormat } : {}),
     });
   };
 
   const handleRawFormatChange = (rawFormat: RawBodyFormat) => {
+    const bodyDrafts = {
+      ...request.bodyDrafts,
+      [getBodyDraftKey(request.bodyType, currentRawFormat)]: request.body,
+    };
+
     onUpdateRequest({
       ...request,
       bodyType: 'raw',
       rawFormat,
-      body: getRawStarterBody(rawFormat),
+      body: bodyDrafts[getBodyDraftKey('raw', rawFormat)] ?? getRawStarterBody(rawFormat),
+      bodyDrafts,
     });
   };
 
   const currentRawFormat: RawBodyFormat = request.rawFormat
-    || (request.bodyType === 'json' ? 'json' : request.bodyType === 'xml' ? 'xml' : 'text');
+    ? request.bodyType === 'json' ? 'json' : request.rawFormat
+    : request.bodyType === 'json' ? 'json' : request.bodyType === 'xml' ? 'xml' : 'text';
   const bodyTypeLabels: Record<BodyType, string> = {
     none: 'none',
     formdata: 'form-data',
@@ -473,6 +510,28 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
         : currentRawFormat === 'javascript'
           ? 'const payload = { hello: "world" };'
           : '';
+
+  useEffect(() => {
+    if (request.bodyType !== 'json') return;
+
+    const previousRawFormat = request.rawFormat;
+    const isStaleRawStarter = previousRawFormat
+      && previousRawFormat !== 'json'
+      && request.body === getRawStarterBody(previousRawFormat);
+
+    if (isStaleRawStarter) {
+      onUpdateRequest({
+        ...request,
+        body: '{}',
+        bodyDrafts: {
+          ...request.bodyDrafts,
+          [`raw:${previousRawFormat}`]: request.body,
+        },
+      });
+    } else if (!request.body.trim()) {
+      onUpdateRequest({ ...request, body: '{}' });
+    }
+  }, [request.id, request.bodyType, request.body, request.rawFormat]);
 
   const formatJsonBody = () => {
     try {

@@ -1,6 +1,6 @@
 {
   "name": "courier",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Local-first, air-gapped, git-native API testing tool",
   "main": "electron/main.cjs",
   "type": "module",
