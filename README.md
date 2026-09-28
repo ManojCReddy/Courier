@@ -7,10 +7,16 @@ Postman and Bruno's mandatory cloud sync, account requirements, and deprecation 
 
 **Courier** is built for developers who demand complete data privacy, lightning-fast execution, and seamless Git-native version control. The core tool has no account, telemetry, or AI service requirement.
 
-## Version 0.2.0
+## Version 0.2.1
 
-Courier 0.2 focuses on a faster, more intuitive request workflow:
+Courier 0.2.1 improves request setup and collection management:
 
+- New requests default to JSON with a `{}` starter body and a dedicated JSON control beside `none`.
+- Create collections and folders with in-app dialogs; newly created folders are revealed automatically.
+- Initial collection and environment data load concurrently for faster startup.
+- Raw body format options use lowercase labels.
+
+Courier 0.2 also introduced a faster, more intuitive request workflow:
 - Inline hover editing for environment variables and URI path variables, with automatic persistence.
 - Generated cURL preview with resolved request values before execution.
 - A-Z/Z-A sorting for collections and requests inside each collection.
