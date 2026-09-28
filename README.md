@@ -15,8 +15,9 @@ Courier 0.2 focuses on a faster, more intuitive request workflow:
 - Generated cURL preview with resolved request values before execution.
 - A-Z/Z-A sorting for collections and requests inside each collection.
 - Safer variable scoping that keeps `{{environmentVariables}}` separate from `:pathVariables` and `{pathVariables}`.
-- Postman-style body controls with `none`, `form-data`, `x-www-form-urlencoded`, `raw`, and `binary` modes.
-- Raw body formats for Text, JavaScript, JSON, HTML, and XML, with format-aware starter content and Beautify actions.
+- In-app creation dialogs for collections and folders.
+- New requests start with a `{}` JSON body. JSON has a dedicated body control beside `none`; other body formats remain separate options.
+- Raw body formats for `text`, `javascript`, `html`, and `xml`, with format-aware starter content and Beautify actions.
 - Body-scoped `Ctrl+F` search with first, previous, next, last, Replace, and Replace All controls.
 - Request code snippet generation for sharing and documentation.
 - Chetan AI remains disabled by default so Courier stays lightweight and AI-independent.
@@ -30,7 +31,7 @@ Courier 0.2 focuses on a faster, more intuitive request workflow:
 - **Query Params & Headers Editor**: Key-value tables with auto-complete and instant toggle checkboxes.
 - **URI / Path Variables**: Auto-detects `:param` and `{param}` directly from URL paths.
 - **Auth Presets**: Bearer Token, Basic Auth (`user:pass`), and API Key (Header or Query).
-- **Body Formats**: Postman-style `none`, `form-data`, `x-www-form-urlencoded`, `raw`, and `binary` modes. Raw supports Text, JavaScript, JSON, HTML, XML, and Beautify actions.
+- **Body Formats**: New requests start in JSON mode with a `{}` starter body. Choose JSON directly beside `none`, or use `form-data`, `x-www-form-urlencoded`, `raw`, or `binary`; raw supports `text`, `javascript`, `html`, and `xml` formats with Beautify actions.
 - **Quick cURL Importer**: Paste any raw `curl` snippet (from Chrome DevTools or docs) to instantly populate the workbench.
 - **Generated cURL Preview**: Inspect and copy the current request as cURL before sending it.
 - **Scoped Body Search**: Search request and response bodies without invoking global browser search; request bodies also support Replace and Replace All.
@@ -39,6 +40,7 @@ Courier 0.2 focuses on a faster, more intuitive request workflow:
 
 ### 2. 📁 Git-Native Local Storage
 - **Zero Cloud Lock-in**: All collections and environments are stored directly on your local filesystem in `./courier-data/collections/` and `./courier-data/environments/` as clean, readable JSON files.
+- Create collections and folders from the sidebar using in-app naming dialogs.
 - Commit, branch, PR, and review your API test suites alongside your application code in Git.
 
 ### 3. 🌐 Layered Environment Variable Scoping Engine

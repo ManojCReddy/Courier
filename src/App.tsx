@@ -149,10 +149,11 @@ export const App: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const cols = await fetchCollections();
+      const [cols, envs] = await Promise.all([
+        fetchCollections(),
+        fetchEnvironments(),
+      ]);
       setCollections(cols);
-
-      const envs = await fetchEnvironments();
       setEnvironments(envs);
       if (envs.length > 0 && !selectedEnvId) {
         setSelectedEnvId(envs[0].id);
@@ -373,8 +374,8 @@ export const App: React.FC = () => {
       pathParams: [],
       headers: [],
       auth: { type: 'none' },
-      bodyType: 'none',
-      body: '',
+      bodyType: 'json',
+      body: '{}',
       assertions: [
         { id: `a-${Date.now()}`, name: 'Status is 200', type: 'STATUS_CODE_EQUALS', expected: '200', enabled: true }
       ],
@@ -427,13 +428,10 @@ export const App: React.FC = () => {
   };
 
   // Create Collection
-  const handleCreateCollection = async () => {
-    const name = prompt('Enter new collection name:');
-    if (!name) return;
-
+  const handleCreateCollection = async (name: string) => {
     const newCol: CourierCollection = {
       id: `col-${Date.now()}`,
-      name,
+      name: name.trim(),
       requests: [],
       folders: [],
     };
@@ -458,16 +456,13 @@ export const App: React.FC = () => {
   };
 
   // Create Subfolder
-  const handleCreateFolder = async (collectionId: string) => {
+  const handleCreateFolder = async (collectionId: string, name: string) => {
     const targetCol = collections.find(c => c.id === collectionId);
     if (!targetCol) return;
 
-    const name = prompt('Enter folder name:');
-    if (!name) return;
-
     const newFolder: CourierFolder = {
       id: `folder-${Date.now()}`,
-      name,
+      name: name.trim(),
       requests: [],
     };
 

@@ -21,10 +21,10 @@ interface SidebarProps {
   width?: number;
   onSelectRequest: (collectionId: string, request: CourierRequest) => void;
   onCreateRequest: (collectionId: string, folderId?: string) => void;
-  onCreateCollection: () => void;
+  onCreateCollection: (name: string) => Promise<void>;
   onDuplicateRequest: (collectionId: string, request: CourierRequest) => void;
   onDuplicateCollection: (collectionId: string) => void;
-  onCreateFolder: (collectionId: string) => void;
+  onCreateFolder: (collectionId: string, name: string) => Promise<void>;
   onDeleteRequest: (collectionId: string, requestId: string) => void;
   onDeleteCollection: (collectionId: string) => void;
   onDeleteFolder?: (collectionId: string, folderId: string) => void;
@@ -51,6 +51,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     'col-sample-1': true,
   });
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+  const [createTarget, setCreateTarget] = useState<{ type: 'collection' } | { type: 'folder'; collectionId: string } | null>(null);
+  const [newItemName, setNewItemName] = useState('');
+  const [createError, setCreateError] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
   const toggleExpand = (id: string) => {
     setExpandedCollections(prev => ({ ...prev, [id]: !prev[id] }));
@@ -58,6 +62,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const toggleExpandFolder = (id: string) => {
     setExpandedFolders(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const openCreateDialog = (target: { type: 'collection' } | { type: 'folder'; collectionId: string }) => {
+    setCreateTarget(target);
+    setNewItemName('');
+    setCreateError('');
+  };
+
+  const submitCreate = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const name = newItemName.trim();
+    if (!name || !createTarget) return;
+
+    setIsCreating(true);
+    setCreateError('');
+    try {
+      if (createTarget.type === 'collection') {
+        await onCreateCollection(name);
+      } else {
+        await onCreateFolder(createTarget.collectionId, name);
+        setExpandedCollections(prev => ({ ...prev, [createTarget.collectionId]: true }));
+      }
+      setCreateTarget(null);
+      setNewItemName('');
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : 'Could not create item.');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const getMethodColor = (method: HttpMethod) => {
@@ -158,7 +191,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {collectionSort === 'asc' ? <ArrowDownAZ className="w-4 h-4" /> : <ArrowUpAZ className="w-4 h-4" />}
             </button>
             <button
-              onClick={onCreateCollection}
+              onClick={() => openCreateDialog({ type: 'collection' })}
               className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
               title="Create New Collection"
               aria-label="Create New Collection"
@@ -227,7 +260,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onCreateFolder(col.id);
+                        openCreateDialog({ type: 'folder', collectionId: col.id });
                       }}
                       className="p-1 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 rounded"
                       title="Add Subfolder"
@@ -346,6 +379,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })
         )}
       </div>
+
+      {createTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <form
+            onSubmit={(event) => void submitCreate(event)}
+            className="w-full max-w-sm rounded-lg border border-zinc-700 bg-[#15151a] p-4 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-item-title"
+          >
+            <h2 id="create-item-title" className="mb-3 text-sm font-semibold text-zinc-100">
+              {createTarget.type === 'collection' ? 'New collection' : 'New folder'}
+            </h2>
+            <input
+              autoFocus
+              value={newItemName}
+              onChange={(event) => setNewItemName(event.target.value)}
+              placeholder={createTarget.type === 'collection' ? 'Collection name' : 'Folder name'}
+              className="w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-zinc-200 outline-none focus:border-emerald-500"
+              aria-label={createTarget.type === 'collection' ? 'Collection name' : 'Folder name'}
+            />
+            {createError && <p className="mt-2 text-xs text-rose-400">{createError}</p>}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setCreateTarget(null)}
+                disabled={isCreating}
+                className="rounded px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-800 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!newItemName.trim() || isCreating}
+                className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isCreating ? 'Creating...' : 'Create'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Footer Info */}
       <div className="p-3 border-t border-zinc-800 text-[11px] text-zinc-500 flex items-center justify-between">

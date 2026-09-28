@@ -439,6 +439,7 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
     onUpdateRequest({
       ...request,
       bodyType,
+      ...(bodyType === 'json' && !request.body.trim() ? { body: '{}' } : {}),
       ...(bodyType === 'raw' ? { body: '', rawFormat: 'text' as RawBodyFormat } : {}),
     });
   };
@@ -513,7 +514,7 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
         updateField('body', request.body.replace(/;\s*/g, ';\n').replace(/\{\s*/g, '{\n').replace(/\s*\}/g, '\n}').trim());
       }
     } catch {
-      alert(`Unable to beautify ${currentRawFormat.toUpperCase()} body`);
+      alert(`Unable to beautify ${currentRawFormat.toLowerCase()} body`);
     }
   };
 
@@ -1135,14 +1136,29 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
           <div className="flex flex-col h-full space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 text-xs">
-                {(['none', 'formdata', 'urlencoded', 'raw', 'binary'] as BodyType[]).map((type) => (
+                {(['none', 'json'] as BodyType[]).map((type) => (
+                  <label key={type} className="flex items-center gap-1.5 cursor-pointer text-zinc-300">
+                    <input
+                      type="radio"
+                      name="bodyType"
+                      value={type}
+                      checked={type === 'json'
+                        ? request.bodyType === 'json' || ((request.bodyType === 'raw' || request.bodyType === 'xml') && currentRawFormat === 'json')
+                        : request.bodyType === type}
+                      onChange={() => handleBodyTypeChange(type)}
+                      className="text-emerald-500 focus:ring-0"
+                    />
+                    {type.toLowerCase()}
+                  </label>
+                ))}
+                {(['formdata', 'urlencoded', 'raw', 'binary'] as BodyType[]).map((type) => (
                   <label key={type} className="flex items-center gap-1.5 cursor-pointer text-zinc-300">
                     <input
                       type="radio"
                       name="bodyType"
                       value={type}
                       checked={type === 'raw'
-                        ? request.bodyType === 'raw' || request.bodyType === 'json' || request.bodyType === 'xml'
+                        ? (request.bodyType === 'raw' || request.bodyType === 'xml') && currentRawFormat !== 'json'
                         : request.bodyType === type}
                       onChange={() => handleBodyTypeChange(type)}
                       className="text-emerald-500 focus:ring-0"
@@ -1150,18 +1166,17 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
                     {bodyTypeLabels[type].toLowerCase()}
                   </label>
                 ))}
-                {(request.bodyType === 'raw' || request.bodyType === 'json' || request.bodyType === 'xml') && (
+                {(request.bodyType === 'raw' || request.bodyType === 'xml') && currentRawFormat !== 'json' && (
                   <select
                     value={currentRawFormat}
                     onChange={(event) => handleRawFormatChange(event.target.value as RawBodyFormat)}
                     className="rounded bg-transparent px-1 text-xs text-zinc-300 outline-none"
                     aria-label="Raw body format"
                   >
-                    <option className="bg-zinc-950 text-zinc-200" value="text">Text</option>
-                    <option className="bg-zinc-950 text-zinc-200" value="javascript">JavaScript</option>
-                    <option className="bg-zinc-950 text-zinc-200" value="json">JSON</option>
-                    <option className="bg-zinc-950 text-zinc-200" value="html">HTML</option>
-                    <option className="bg-zinc-950 text-zinc-200" value="xml">XML</option>
+                    <option className="bg-zinc-950 text-zinc-200" value="text">text</option>
+                    <option className="bg-zinc-950 text-zinc-200" value="javascript">javascript</option>
+                    <option className="bg-zinc-950 text-zinc-200" value="html">html</option>
+                    <option className="bg-zinc-950 text-zinc-200" value="xml">xml</option>
                   </select>
                 )}
               </div>
@@ -1170,7 +1185,7 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
                 <button
                   onClick={request.bodyType === 'json' ? formatJsonBody : formatRawBody}
                   className="flex items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 px-2.5 py-1 rounded transition-colors"
-                  title={`Beautify ${currentRawFormat.toUpperCase()} body`}
+                  title={`Beautify ${currentRawFormat.toLowerCase()} body`}
                 >
                   <Wand2 className="w-3 h-3 text-emerald-400" />
                   Beautify
