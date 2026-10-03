@@ -30,6 +30,8 @@ interface RequestPanelProps {
   onUpdateRequest: (updatedRequest: CourierRequest) => void;
   onSendRequest: () => void;
   onSaveRequest: () => void;
+  isCodeSnippetOpen?: boolean;
+  onToggleCodeSnippet?: () => void;
 }
 
 export const RequestPanel: React.FC<RequestPanelProps> = ({
@@ -40,6 +42,8 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
   onUpdateRequest,
   onSendRequest,
   onSaveRequest,
+  isCodeSnippetOpen,
+  onToggleCodeSnippet,
 }) => {
   const [activeTab, setActiveTab] = useState<'params' | 'headers' | 'auth' | 'body' | 'tests' | 'script'>('params');
   const [curlPreviewOpen, setCurlPreviewOpen] = useState(false);
@@ -621,15 +625,6 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setCurlPreviewOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium border transition-colors"
-            style={{ background: 'var(--app-surface-soft)', borderColor: 'var(--app-border)', color: 'var(--text-primary)' }}
-            title="View generated cURL command"
-          >
-            <Code2 className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
-            <span>cURL</span>
-          </button>
-          <button
             onClick={onSaveRequest}
             className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium border transition-colors"
             style={{ background: 'var(--app-surface-soft)', borderColor: 'var(--app-border)', color: 'var(--text-primary)' }}
@@ -637,6 +632,20 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
           >
             <Save className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
             <span>Save</span>
+          </button>
+
+          <button
+            onClick={onToggleCodeSnippet || (() => setCurlPreviewOpen(true))}
+            className={`flex items-center justify-center h-7 px-2.5 rounded text-xs font-mono font-bold border transition-colors ${
+              isCodeSnippetOpen
+                ? 'bg-emerald-950/80 border-emerald-500/80 text-emerald-400 shadow-sm'
+                : 'hover:bg-zinc-800 border-zinc-700/70 text-zinc-300 hover:text-zinc-100'
+            }`}
+            style={{ borderColor: isCodeSnippetOpen ? undefined : 'var(--app-border)' }}
+            title={isCodeSnippetOpen ? 'Close code snippet' : 'Code snippet'}
+            aria-label="Code snippet"
+          >
+            <span className="text-[12px] font-mono leading-none">&lt;/&gt;</span>
           </button>
         </div>
       </div>

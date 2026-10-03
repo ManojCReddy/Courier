@@ -1,6 +1,6 @@
 import React from 'react';
 import { Play, Sliders, Globe, ShieldCheck, Settings, Columns, Rows, Minus, Square, X } from 'lucide-react';
-import airplaneLogo from '../../assets/courier-mark.svg';
+import courierLogo from '../../assets/courier-icon.png';
 import { Environment, AppSettings } from '../types';
 
 interface HeaderProps {
@@ -38,12 +38,12 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Brand & Air-Gapped Badge */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-[#0b1213] border border-emerald-500/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] flex items-center justify-center overflow-hidden">
-            <img src={airplaneLogo} alt="Courier logo" className="w-6 h-6 object-cover" />
+          <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center shadow-lg shadow-emerald-900/50 ring-1 ring-emerald-800/30">
+            <img src={courierLogo} alt="Courier logo" className="w-full h-full object-cover" />
           </div>
           <span className="font-black tracking-[0.18em] text-[15px] text-zinc-100 flex items-center gap-1.5">
             COURIER
-            <span className="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">v0.2</span>
+            <span className="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">v0.2.3</span>
           </span>
         </div>
 

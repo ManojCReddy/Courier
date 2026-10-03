@@ -1,6 +1,6 @@
 {
   "name": "courier",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Local-first, air-gapped, git-native API testing tool",
   "main": "electron/main.cjs",
   "type": "module",
@@ -45,6 +45,7 @@
     "postcss": "^8.5.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "sharp": "^0.35.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.3",
     "vite": "^6.1.0"
@@ -74,4 +75,3 @@
     }
   }
 }
-

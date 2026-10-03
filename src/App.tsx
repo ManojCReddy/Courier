@@ -14,6 +14,7 @@ import { Sidebar } from './components/Sidebar';
 import { RequestTabs } from './components/RequestTabs';
 import { RequestPanel } from './components/RequestPanel';
 import { ResponsePanel } from './components/ResponsePanel';
+import { CodeSnippetPanel } from './components/CodeSnippetPanel';
 import { CurlImportModal } from './components/CurlImportModal';
 import { EnvironmentModal } from './components/EnvironmentModal';
 import { SuiteRunnerModal } from './components/SuiteRunnerModal';
@@ -27,6 +28,7 @@ export const App: React.FC = () => {
   const [openTabs, setOpenTabs] = useState<Array<{ collectionId: string; request: CourierRequest }>>([]);
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
+  const [isCodeSnippetOpen, setIsCodeSnippetOpen] = useState(false);
 
   // Response state cached per request ID
   const [responsesByRequestId, setResponsesByRequestId] = useState<Record<string, HttpResponse>>({});
@@ -610,7 +612,7 @@ export const App: React.FC = () => {
 
           {/* Workbench Grid: Side-by-Side vs Stacked Underneath */}
           {activeRequest ? (
-            <div className={`flex-1 flex overflow-hidden ${
+            <div className={`flex-1 flex overflow-hidden relative ${
               settings.layout === 'vertical' ? 'flex-col' : 'flex-col md:flex-row'
             }`}>
               {/* Request Panel */}
@@ -632,6 +634,8 @@ export const App: React.FC = () => {
                   onUpdateRequest={handleUpdateRequest}
                   onSendRequest={handleSendRequest}
                   onSaveRequest={handleSaveRequest}
+                  isCodeSnippetOpen={isCodeSnippetOpen}
+                  onToggleCodeSnippet={() => setIsCodeSnippetOpen(prev => !prev)}
                 />
               </div>
 
@@ -649,8 +653,19 @@ export const App: React.FC = () => {
                 <ResponsePanel
                   response={currentResponse}
                   isLoading={isLoadingRequest}
+                  onOpenCodeSnippet={() => setIsCodeSnippetOpen(true)}
                 />
               </div>
+
+              {/* Visual Code Snippet Panel (Postman Style) */}
+              {isCodeSnippetOpen && (
+                <CodeSnippetPanel
+                  isOpen={isCodeSnippetOpen}
+                  onClose={() => setIsCodeSnippetOpen(false)}
+                  request={activeRequest}
+                  variables={activeEnvironmentVariables}
+                />
+              )}
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-zinc-600 gap-3">

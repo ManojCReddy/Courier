@@ -114,16 +114,16 @@ app.post('/api/curl/parse', (req, res) => {
 });
 
 // Start Server
-try {
-  app.listen(PORT, () => {
-    console.log(`[Courier Core Engine] Local server running on http://localhost:${PORT}`);
-    console.log(`[Courier Core Engine] Storage initialized in ./courier-data/`);
-  });
-} catch (error) {
+const server = app.listen(PORT, () => {
+  console.log(`[Courier Core Engine] Local server running on http://localhost:${PORT}`);
+  console.log(`[Courier Core Engine] Storage initialized in ./courier-data/`);
+});
+
+server.on('error', (error) => {
   if (error && error.code === 'EADDRINUSE') {
     console.warn(`[Courier Core Engine] Port ${PORT} is already in use. Reusing the running local server.`);
   } else {
-    throw error;
+    console.error('[Courier Core Engine] Server error:', error);
   }
-}
+});
 

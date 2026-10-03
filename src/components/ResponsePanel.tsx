@@ -18,11 +18,13 @@ import { HttpResponse } from '../types';
 interface ResponsePanelProps {
   response: HttpResponse | null;
   isLoading: boolean;
+  onOpenCodeSnippet?: () => void;
 }
 
 export const ResponsePanel: React.FC<ResponsePanelProps> = ({
   response,
   isLoading,
+  onOpenCodeSnippet,
 }) => {
   const [activeTab, setActiveTab] = useState<'body' | 'headers' | 'tests'>('body');
   const [copiedResponse, setCopiedResponse] = useState(false);
@@ -146,6 +148,16 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
 
         {/* Quick Action Buttons */}
         <div className="flex items-center gap-2">
+          {onOpenCodeSnippet && (
+            <button
+              onClick={onOpenCodeSnippet}
+              className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition-colors"
+              title="View visual code snippet (cURL)"
+            >
+              <span className="font-mono text-[11px] font-bold text-emerald-400">&lt;/&gt;</span>
+              <span>cURL</span>
+            </button>
+          )}
           <button
             onClick={handleCopyBody}
             className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition-colors"
