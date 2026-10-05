@@ -13,6 +13,7 @@ app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 
 const appIcon = path.join(__dirname, '..', 'assets', 'courier-icon.ico');
+const BACKEND_URL = 'http://127.0.0.1:4174';
 
 let mainWindow = null;
 let splashWindow = null;
@@ -178,8 +179,6 @@ function createWindow() {
   });
   ipcMain.on('window:close', () => { if (mainWindow) mainWindow.close(); });
 
-  mainWindow.loadURL('http://localhost:4174');
-
   // Once the main window is ready, close splash and show app
   mainWindow.once('ready-to-show', () => {
     if (splashWindow && !splashWindow.isDestroyed()) {
@@ -195,20 +194,20 @@ function createWindow() {
 
 // ─── Backend: health-check + start (unchanged logic) ───
 async function waitForBackend() {
-  const maxAttempts = 60;
+  const maxAttempts = 375;
   for (let i = 0; i < maxAttempts; i++) {
     try {
-      const response = await fetch('http://localhost:4174/api/health');
+      const response = await fetch(`${BACKEND_URL}/api/health`);
       if (response.ok) return;
     } catch (_) { /* retry */ }
-    await new Promise(r => setTimeout(r, 250));
+    await new Promise(r => setTimeout(r, 40));
   }
-  throw new Error('Courier backend did not start on localhost:4174');
+  throw new Error(`Courier backend did not start on ${BACKEND_URL}`);
 }
 
 async function startBackend() {
   try {
-    const response = await fetch('http://localhost:4174/api/health');
+    const response = await fetch(`${BACKEND_URL}/api/health`);
     if (response.ok) return; // already running
   } catch (_) { /* start it */ }
 
@@ -230,7 +229,9 @@ app.whenReady().then(async () => {
   // Show splash immediately — user sees something in <200ms
   createSplash();
 
-  // Start backend & create window in parallel
+  // Chromium spins up the hidden window while the backend starts
+  createWindow();
+
   try {
     await startBackend();
   } catch (error) {
@@ -240,11 +241,13 @@ app.whenReady().then(async () => {
     return;
   }
 
-  // Backend is ready — create main window (Chromium loads from backend)
-  createWindow();
+  if (mainWindow) mainWindow.loadURL(BACKEND_URL);
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+      mainWindow.loadURL(BACKEND_URL);
+    }
   });
 });
 

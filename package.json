@@ -11,7 +11,7 @@
     "build": "vite build",
     "start": "node server/index.js",
     "electron": "electron .",
-    "dist": "npm run build && electron-builder --win portable",
+    "dist": "npm run build && electron-builder --win",
     "dist:zip": "npm run build && electron-builder --win zip",
     "pack": "npm run build && electron-builder --win nsis",
     "cli": "node server/cli.js",
@@ -43,6 +43,7 @@
     "electron-builder": "^24.13.1",
     "lucide-react": "^0.475.0",
     "postcss": "^8.5.2",
+    "rcedit": "^5.0.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "sharp": "^0.35.5",
@@ -54,6 +55,8 @@
     "appId": "com.courier.app",
     "productName": "Courier",
     "forceCodeSigning": false,
+    "afterPack": "scripts/afterPack.cjs",
+    "electronLanguages": ["en-US"],
     "directories": {
       "output": "release"
     },
@@ -67,11 +70,24 @@
     ],
     "win": {
       "icon": "assets/courier-icon.ico",
+      "requestedExecutionLevel": "asInvoker",
       "target": [
-        "portable"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "sign": null,
       "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "deleteAppDataOnUninstall": false,
+      "shortcutName": "Courier"
     }
   }
 }

@@ -11,6 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 4174;
+const HOST = '127.0.0.1';
 const distPath = path.resolve(__dirname, '../dist');
 
 // Middleware
@@ -29,7 +30,7 @@ initStorage();
 
 // Health Check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', name: 'Courier Local API Server', version: '0.2.2' });
+  res.json({ status: 'ok', name: 'Courier Local API Server', version: '0.2.3' });
 });
 
 // HTTP Request Execution
@@ -114,8 +115,8 @@ app.post('/api/curl/parse', (req, res) => {
 });
 
 // Start Server
-const server = app.listen(PORT, () => {
-  console.log(`[Courier Core Engine] Local server running on http://localhost:${PORT}`);
+const server = app.listen(PORT, HOST, () => {
+  console.log(`[Courier Core Engine] Local server running on http://${HOST}:${PORT}`);
   console.log(`[Courier Core Engine] Storage initialized in ./courier-data/`);
 });
 

@@ -7,10 +7,14 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:4174',
+        target: 'http://127.0.0.1:4174',
         changeOrigin: true,
       },
     },
+  },
+  // Prevent Vite from watching the packaged output — avoids EBUSY on the .exe
+  watch: {
+    ignored: ['**/release/**', '**/dist/**'],
   },
 });
 
