@@ -221,11 +221,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         ) : (
           sortedCollections.map((col) => {
-            const isExpanded = expandedCollections[col.id] ?? true;
-            const filteredDirectRequests = (col.requests || []).filter(r =>
-              r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              r.url.toLowerCase().includes(searchQuery.toLowerCase())
-            );
+            const isExpanded = expandedCollections[col.id] ?? false;
+            const normalizedSearchQuery = searchQuery.toLowerCase();
+            const filteredDirectRequests = isExpanded
+              ? (col.requests || []).filter(r =>
+                  r.name.toLowerCase().includes(normalizedSearchQuery) ||
+                  r.url.toLowerCase().includes(normalizedSearchQuery)
+                )
+              : [];
 
             return (
               <div key={col.id} className="space-y-0.5">
