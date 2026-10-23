@@ -104,8 +104,8 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
   if (!response) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-[#101014] text-zinc-600 gap-2 border-t md:border-t-0 md:border-l border-zinc-800 select-none p-6 text-center">
-        <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-600 mb-1">
-          <Terminal className="w-6 h-6" />
+        <div className="mb-1 flex h-12 w-12 items-center justify-center rounded-full border border-emerald-900/50 bg-emerald-950/30 text-emerald-500/80">
+          <Terminal className="h-5 w-5" />
         </div>
         <p className="text-sm font-medium text-zinc-400">Response Panel</p>
         <p className="text-xs text-zinc-500 max-w-xs">

@@ -728,13 +728,13 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
               }
             }}
             placeholder="https://api.example.com/v1/resource or {{baseUrl}}/resource"
-            className={`w-full rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-emerald-500 transition-colors ${request.url ? 'text-transparent caret-zinc-200' : ''}`}
+            className={`w-full rounded-lg px-4 py-2 text-xs font-mono focus:outline-none focus:border-emerald-500 transition-colors ${request.url ? 'text-transparent caret-zinc-200' : ''}`}
             style={{ background: 'var(--app-surface-soft)', border: '1px solid var(--app-border)', color: request.url ? 'transparent' : 'var(--text-primary)' }}
           />
           {request.url && urlVariables.length > 0 && (
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre px-3 py-2 text-xs font-mono text-zinc-200"
+              className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre px-4 py-2 text-xs font-mono text-zinc-200"
             >
               {renderUrlValue()}
             </div>
@@ -1203,44 +1203,37 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({
         {activeTab === 'body' && (
           <div className="flex flex-col h-full space-y-2">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 text-xs">
-                {(['none', 'json'] as BodyType[]).map((type) => (
-                  <label key={type} className="flex items-center gap-1.5 cursor-pointer text-zinc-300">
-                    <input
-                      type="radio"
-                      name="bodyType"
-                      value={type}
-                      checked={type === 'json'
-                        ? request.bodyType === 'json' || ((request.bodyType === 'raw' || request.bodyType === 'xml') && currentRawFormat === 'json')
-                        : request.bodyType === type}
-                      onChange={() => handleBodyTypeChange(type)}
-                      className="text-emerald-500 focus:ring-0"
-                    />
-                    {type.toLowerCase()}
-                  </label>
-                ))}
-                {(['formdata', 'urlencoded', 'raw', 'binary'] as BodyType[]).map((type) => (
-                  <label key={type} className="flex items-center gap-1.5 cursor-pointer text-zinc-300">
-                    <input
-                      type="radio"
-                      name="bodyType"
-                      value={type}
-                      checked={type === 'raw'
-                        ? (request.bodyType === 'raw' || request.bodyType === 'xml') && currentRawFormat !== 'json'
-                        : request.bodyType === type}
-                      onChange={() => handleBodyTypeChange(type)}
-                      className="text-emerald-500 focus:ring-0"
-                    />
-                    {bodyTypeLabels[type].toLowerCase()}
-                  </label>
-                ))}
-                {(request.bodyType === 'raw' || request.bodyType === 'xml') && currentRawFormat !== 'json' && (
+              <div className="flex min-w-0 flex-wrap items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-950/70 p-1 text-[11px]" role="radiogroup" aria-label="Request body type">
+                {(['none', 'formdata', 'urlencoded', 'raw', 'binary'] as BodyType[]).map((type) => {
+                  const isSelected = type === 'raw'
+                    ? request.bodyType === 'raw' || request.bodyType === 'json' || request.bodyType === 'xml'
+                    : request.bodyType === type;
+
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      onClick={() => handleBodyTypeChange(type)}
+                      className={`rounded-md px-2 py-1 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 ${
+                        isSelected
+                          ? 'bg-zinc-800 text-emerald-300 shadow-sm'
+                          : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'
+                      }`}
+                    >
+                      {bodyTypeLabels[type].toLowerCase()}
+                    </button>
+                  );
+                })}
+                {(request.bodyType === 'raw' || request.bodyType === 'json' || request.bodyType === 'xml') && (
                   <select
                     value={currentRawFormat}
                     onChange={(event) => handleRawFormatChange(event.target.value as RawBodyFormat)}
-                    className="rounded bg-transparent px-1 text-xs text-zinc-300 outline-none"
+                    className="rounded-md bg-zinc-900 px-2 py-1 text-[11px] text-zinc-200 outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
                     aria-label="Raw body format"
                   >
+                    <option className="bg-zinc-950 text-zinc-200" value="json">json</option>
                     <option className="bg-zinc-950 text-zinc-200" value="text">text</option>
                     <option className="bg-zinc-950 text-zinc-200" value="javascript">javascript</option>
                     <option className="bg-zinc-950 text-zinc-200" value="html">html</option>
