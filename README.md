@@ -1,21 +1,24 @@
 # Courier 🚀
 ### Local-First, Git-Native API Workbench & Test Suite
 
-> **Enterprise-Ready, 100% Air-Gapped & Telemetry-Free Postman/Bruno Alternative**
+> **Privacy-Focused, Telemetry-Free API Client and Test Suite**
 
-Postman and Bruno's mandatory cloud sync, account requirements, and deprecation of the offline scratchpad created severe security and compliance liabilities for developers, healthcare systems, defense contractors, and fintechs.
+Many API clients emphasize hosted collaboration and account-connected workflows. Courier takes a local-first approach: collections and environments stay on your machine, and the core tool requires no account, telemetry, or AI service.
 
-**Courier** is built for developers who demand complete data privacy, lightning-fast execution, and seamless Git-native version control. The core tool has no account, telemetry, or AI service requirement.
+**Courier** is built for developers who want local data storage, fast request execution, and Git-native version control. Requests still connect to the API targets you choose, so Courier is not an air-gapped tool.
 
-## Version 0.2.2
+## Version 0.2.3
 
-Courier 0.2.2 improves request body editing:
+Courier 0.2.3 improves Windows packaging and application startup.
+
+Courier 0.2.2 improved request body editing:
 
 - Body drafts are retained separately for each body type and raw format, and restored when switching between them.
 - New requests default to JSON with a simple `{}` starter body.
 - A stale generated raw/XML starter is repaired to `{}` when the request is in JSON mode.
 
 Courier 0.2.1 improved request setup and collection management:
+
 - Create collections and folders with in-app dialogs; newly created folders are revealed automatically.
 - Initial collection and environment data load concurrently for faster startup.
 - JSON has a dedicated body control beside `none`; raw body format options use lowercase labels.
@@ -40,7 +43,7 @@ Courier 0.2 introduced a faster request workflow:
 - **HTTP Methods**: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `HEAD`.
 - **Query Params & Headers Editor**: Key-value tables with auto-complete and instant toggle checkboxes.
 - **URI / Path Variables**: Auto-detects `:param` and `{param}` directly from URL paths.
-- **Auth Presets**: Bearer Token, Basic Auth (`user:pass`), and API Key (Header or Query).
+- **Authentication**: Basic Auth (`user:pass`) and API Key (header or query parameter).
 - **Body Formats**: New requests start in JSON mode with a `{}` starter body. Choose JSON directly beside `none`, or use `form-data`, `x-www-form-urlencoded`, `raw`, or `binary`; raw supports `text`, `javascript`, `html`, and `xml` formats with Beautify actions.
 - **Quick cURL Importer**: Paste any raw `curl` snippet (from Chrome DevTools or docs) to instantly populate the workbench.
 - **Generated cURL Preview**: Inspect and copy the current request as cURL before sending it.
@@ -114,12 +117,22 @@ pm.globals.set("apiBase", "https://api.example.com");  // maps to setGlobalEnv
 - **Script Logs Inspection**: The response panel displays a dedicated **Script Assertions & Logs** view showing passed assertions, failed checks, and `console.log()` statements.
 - **Suite Runner Modal**: Execute an entire collection sequentially in the browser with live progress, latency metrics, and pass/fail reports with tiered variable inheritance.
 
-### 6. 🧩 Optional User-Owned AI
+### 6. 📐 OpenAPI / Swagger Workflow
+- **Import**: Use **Import API Spec** to load OpenAPI 3.0/3.1 or Swagger 2.0 files (JSON or YAML). Review the endpoint, folder, model and auth summary before importing.
+- **Generated collections**: Tags become folders; each operation becomes a request with path/query/header parameters, auth settings (Bearer, Basic, API Key, OAuth2 as Bearer), example bodies and a status assertion. The server URL is stored as the collection's `{{baseUrl}}` variable.
+- **API Map**: Open **API Map** to browse endpoints and models together. Selecting a model shows its fields, the models it references, the models that reference it, and the endpoints that use it.
+- **Response validation**: Requests generated from a spec get a **Contract** tab that validates the response against the documented schema and reports the exact path of each mismatch (for example `$.items[2].owner.id`).
+- **Contract drift**: The same tab compares the saved spec with the observed response and lists added, missing and type-changed fields.
+- Specs are saved locally in `./courier-data/specs/`.
+- **Try it**: Import [`examples/users-api.openapi.yaml`](./examples/users-api.openapi.yaml), send *Get Users List* and open the **Contract** tab. The demo spec intentionally differs from the live JSONPlaceholder API so you can see validation errors and drift.
+- **Tip**: Fields the API may omit should not be listed under `required`. Fields that may be `null` need `nullable: true` (OpenAPI 3.0), `type: [string, "null"]` (3.1) or `x-nullable: true` (Swagger 2.0).
+
+### 7. 🧩 Optional User-Owned AI
 The integrated Chetan assistant is disabled in the lightweight Courier build. Courier does not call Gemini, OpenAI, Ollama, or any other AI service by default.
 
 If AI support is added later, it should connect only to an LLM endpoint and model selected and operated by the user. API testing, assertions, scripting, and the CLI runner work independently without AI.
 
-### 7. 💻 Headless CLI Runner for CI/CD
+### 8. 💻 Headless CLI Runner for CI/CD
 Run your test suites in GitHub Actions, GitLab CI, Jenkins, or Docker without launching the GUI:
 ```bash
 node server/cli.js run ./courier-data/collections/col-sample-1.json --env Development

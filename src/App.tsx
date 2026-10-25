@@ -16,6 +16,8 @@ import { RequestPanel } from './components/RequestPanel';
 import { ResponsePanel } from './components/ResponsePanel';
 import { CodeSnippetPanel } from './components/CodeSnippetPanel';
 import { CurlImportModal } from './components/CurlImportModal';
+import { OpenApiImportModal } from './components/OpenApiImportModal';
+import { ApiExplorerModal } from './components/ApiExplorerModal';
 import { EnvironmentModal } from './components/EnvironmentModal';
 import { SuiteRunnerModal } from './components/SuiteRunnerModal';
 import { SettingsModal } from './components/SettingsModal';
@@ -135,6 +137,19 @@ export const App: React.FC = () => {
   const [envModalOpen, setEnvModalOpen] = useState(false);
   const [suiteRunnerOpen, setSuiteRunnerOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [apiImportOpen, setApiImportOpen] = useState(false);
+  const [apiMapOpen, setApiMapOpen] = useState(false);
+  const [apiMapSpecId, setApiMapSpecId] = useState<string | null>(null);
+  const [specsVersion, setSpecsVersion] = useState(0);
+
+  const handleOpenApiImported = (collection: CourierCollection) => {
+    setCollections(prev => [...prev, collection]);
+    setSpecsVersion(v => v + 1);
+    setActiveCollectionId(collection.id);
+    const first = collection.requests?.[0] || collection.folders?.[0]?.requests?.[0];
+    if (first) handleSelectRequest(collection.id, first);
+    setApiMapSpecId(collection.id);
+  };
 
   // Debounced autosave ref
   const autoSaveTimerRef = useRef<any>(null);
@@ -567,6 +582,8 @@ export const App: React.FC = () => {
         onOpenEnvModal={() => setEnvModalOpen(true)}
         onOpenCurlModal={() => setCurlModalOpen(true)}
         onOpenSuiteRunner={() => setSuiteRunnerOpen(true)}
+        onOpenApiImport={() => setApiImportOpen(true)}
+        onOpenApiMap={() => setApiMapOpen(true)}
         onOpenSettingsModal={() => setSettingsModalOpen(true)}
         layout={settings.layout}
         onToggleLayout={() => updateSettings({
@@ -654,6 +671,7 @@ export const App: React.FC = () => {
                   response={currentResponse}
                   isLoading={isLoadingRequest}
                   onOpenCodeSnippet={() => setIsCodeSnippetOpen(true)}
+                  request={activeRequest}
                 />
               </div>
 
@@ -687,6 +705,19 @@ export const App: React.FC = () => {
         isOpen={curlModalOpen}
         onClose={() => setCurlModalOpen(false)}
         onImport={handleImportCurl}
+      />
+
+      <OpenApiImportModal
+        isOpen={apiImportOpen}
+        onClose={() => setApiImportOpen(false)}
+        onImported={handleOpenApiImported}
+      />
+
+      <ApiExplorerModal
+        isOpen={apiMapOpen}
+        onClose={() => { setApiMapOpen(false); setApiMapSpecId(null); }}
+        initialSpecId={apiMapSpecId}
+        specsVersion={specsVersion}
       />
 
       <EnvironmentModal

@@ -13,20 +13,51 @@ import {
   XCircle,
   AlertTriangle
 } from 'lucide-react';
-import { HttpResponse } from '../types';
+import { HttpResponse, CourierRequest, ContractResult } from '../types';
+import { checkContract } from '../services/api';
 
 interface ResponsePanelProps {
   response: HttpResponse | null;
   isLoading: boolean;
   onOpenCodeSnippet?: () => void;
+  request?: CourierRequest | null;
 }
 
 export const ResponsePanel: React.FC<ResponsePanelProps> = ({
   response,
   isLoading,
   onOpenCodeSnippet,
+  request,
 }) => {
-  const [activeTab, setActiveTab] = useState<'body' | 'headers' | 'tests'>('body');
+  const [activeTab, setActiveTab] = useState<'body' | 'headers' | 'tests' | 'contract'>('body');
+  const [contract, setContract] = useState<ContractResult | null>(null);
+  const [contractError, setContractError] = useState('');
+  const openapiLink = request?.openapi;
+  const hasContract = !!openapiLink;
+
+  React.useEffect(() => {
+    setContract(null);
+    setContractError('');
+    if (!response || !response.status || !openapiLink) return;
+    let cancelled = false;
+    checkContract(openapiLink.specId, {
+      method: openapiLink.method,
+      path: openapiLink.path,
+      status: response.status,
+      data: response.data,
+    })
+      .then((result) => { if (!cancelled) setContract(result); })
+      .catch((err) => { if (!cancelled) setContractError(err.message); });
+    return () => { cancelled = true; };
+  }, [response, openapiLink?.specId, openapiLink?.method, openapiLink?.path]);
+
+  React.useEffect(() => {
+    if (!hasContract && activeTab === 'contract') setActiveTab('body');
+  }, [hasContract, activeTab]);
+
+  const contractIssueCount = contract
+    ? (contract.validation?.errors.length || 0) + (contract.drift?.summary.total || 0)
+    : 0;
   const [copiedResponse, setCopiedResponse] = useState(false);
   const [bodySearchOpen, setBodySearchOpen] = useState(false);
   const [bodySearch, setBodySearch] = useState('');
@@ -212,6 +243,28 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
             </span>
           )}
         </button>
+
+        {hasContract && (
+          <button
+            onClick={() => setActiveTab('contract')}
+            className={`py-2 px-3 border-b-2 font-medium flex items-center gap-1.5 transition-colors ${
+              activeTab === 'contract'
+                ? 'border-emerald-500 text-emerald-400'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <span>Contract</span>
+            {contract && contract.hasSchema && (
+              <span className={`px-1.5 py-0.2 rounded-full font-mono text-[10px] ${
+                contractIssueCount === 0
+                  ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                  : 'bg-rose-950 text-rose-400 border border-rose-800'
+              }`}>
+                {contractIssueCount === 0 ? '✓' : contractIssueCount}
+              </span>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Tab Content */}
@@ -285,6 +338,84 @@ export const ResponsePanel: React.FC<ResponsePanelProps> = ({
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* CONTRACT TAB */}
+        {activeTab === 'contract' && (
+          <div className="space-y-4 text-xs select-text">
+            {contractError && (
+              <div className="p-3 rounded-lg border border-rose-900/50 bg-rose-950/20 text-rose-200">{contractError}</div>
+            )}
+            {!contract && !contractError && <div className="text-zinc-500 italic">Checking response against the specification…</div>}
+            {contract && !contract.hasSchema && (
+              <div className="p-3 rounded-lg border border-amber-900/50 bg-amber-950/20 text-amber-200 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>{contract.reason}</span>
+              </div>
+            )}
+            {contract && contract.validation && (
+              <section className="space-y-2">
+                <div className="flex items-center gap-2 font-semibold text-zinc-200">
+                  {contract.validation.valid
+                    ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    : <XCircle className="w-4 h-4 text-rose-400" />}
+                  <span>Schema validation</span>
+                  <span className="font-mono font-normal text-zinc-500">
+                    {contract.operation} → {contract.matchedStatus || contract.status}
+                    {contract.expectedType ? ` (${contract.expectedType})` : ''}
+                  </span>
+                </div>
+                {contract.validation.valid ? (
+                  <div className="p-3 rounded-lg border border-emerald-900/50 bg-emerald-950/20 text-emerald-200">
+                    Response matches the documented schema.
+                  </div>
+                ) : (
+                  contract.validation.errors.map((err, idx) => (
+                    <div key={idx} className="p-3 rounded-lg border border-rose-900/50 bg-rose-950/20 text-rose-200">
+                      <div className="font-mono font-semibold text-rose-300">{err.path}</div>
+                      <div className="mt-0.5 opacity-90">{err.message}</div>
+                    </div>
+                  ))
+                )}
+              </section>
+            )}
+            {contract && contract.drift && (
+              <section className="space-y-2">
+                <div className="font-semibold text-zinc-200 flex items-center gap-2">
+                  <span>Contract drift</span>
+                  <span className="font-mono font-normal text-zinc-500">
+                    +{contract.drift.summary.added} added · −{contract.drift.summary.missing} missing · ~{contract.drift.summary.typeChanged} type changed
+                  </span>
+                </div>
+                {contract.drift.summary.total === 0 && (
+                  <div className="p-3 rounded-lg border border-emerald-900/50 bg-emerald-950/20 text-emerald-200">
+                    No drift detected between the saved specification and this response.
+                  </div>
+                )}
+                {contract.drift.added.map(item => (
+                  <div key={`a${item.path}`} className="p-2.5 rounded-lg border border-sky-900/50 bg-sky-950/20 text-sky-200 font-mono">
+                    <span className="font-bold">+ added</span> {item.path}
+                    <span className="text-sky-400/70"> ({item.observed}{item.occurrences > 1 ? `, ×${item.occurrences}` : ''})</span>
+                  </div>
+                ))}
+                {contract.drift.missing.map(item => (
+                  <div key={`m${item.path}`} className="p-2.5 rounded-lg border border-amber-900/50 bg-amber-950/20 text-amber-200 font-mono">
+                    <span className="font-bold">− missing</span> {item.path}
+                    <span className="text-amber-400/70">
+                      {item.required ? ' (required)' : ' (optional)'}
+                      {item.of > 1 ? ` absent in ${item.absentIn}/${item.of}` : ''}
+                    </span>
+                  </div>
+                ))}
+                {contract.drift.typeChanged.map(item => (
+                  <div key={`t${item.path}${item.observed}`} className="p-2.5 rounded-lg border border-violet-900/50 bg-violet-950/20 text-violet-200 font-mono">
+                    <span className="font-bold">~ type changed</span> {item.path}
+                    <span className="text-violet-400/70"> {item.expected} → {item.observed}</span>
+                  </div>
+                ))}
+              </section>
+            )}
           </div>
         )}
 

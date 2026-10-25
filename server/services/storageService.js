@@ -5,9 +5,11 @@ import crypto from 'crypto';
 const DATA_DIR = path.resolve(process.cwd(), 'courier-data');
 const COLLECTIONS_DIR = path.join(DATA_DIR, 'collections');
 const ENVIRONMENTS_DIR = path.join(DATA_DIR, 'environments');
+const SPECS_DIR = path.join(DATA_DIR, 'specs');
 
 // Ensure directories exist
 function ensureDirs() {
+  if (!fs.existsSync(SPECS_DIR)) fs.mkdirSync(SPECS_DIR, { recursive: true });
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(COLLECTIONS_DIR)) fs.mkdirSync(COLLECTIONS_DIR, { recursive: true });
   if (!fs.existsSync(ENVIRONMENTS_DIR)) fs.mkdirSync(ENVIRONMENTS_DIR, { recursive: true });
@@ -50,6 +52,50 @@ export function deleteCollection(id) {
   ensureDirs();
   const filePath = path.join(COLLECTIONS_DIR, `${id}.json`);
   if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+    return true;
+  }
+  return false;
+}
+
+function specPath(id) {
+  if (typeof id !== 'string' || !/^[\w.-]+$/.test(id)) return null;
+  return path.join(SPECS_DIR, `${id}.json`);
+}
+
+export function saveSpec(id, record) {
+  ensureDirs();
+  const filePath = specPath(id);
+  if (!filePath) throw new Error('Invalid specification id');
+  fs.writeFileSync(filePath, JSON.stringify({ ...record, id }, null, 2), 'utf8');
+  return record;
+}
+
+export function getSpec(id) {
+  const filePath = specPath(id);
+  if (!filePath || !fs.existsSync(filePath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+export function listSpecs() {
+  ensureDirs();
+  return fs.readdirSync(SPECS_DIR).filter(f => f.endsWith('.json')).map(file => {
+    try {
+      const { id, name, version, importedAt, source } = JSON.parse(fs.readFileSync(path.join(SPECS_DIR, file), 'utf8'));
+      return { id, name, version, importedAt, source };
+    } catch {
+      return null;
+    }
+  }).filter(Boolean);
+}
+
+export function deleteSpec(id) {
+  const filePath = specPath(id);
+  if (filePath && fs.existsSync(filePath)) {
     fs.unlinkSync(filePath);
     return true;
   }

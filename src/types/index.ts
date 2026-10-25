@@ -65,6 +65,8 @@ export interface CourierRequest {
   assertions: TestAssertion[];
   /** Optional post-response script (JS). Runs after every successful send. */
   script?: string;
+  /** Links a request generated from an imported OpenAPI/Swagger spec to its operation. */
+  openapi?: { specId: string; method: string; path: string };
 }
 
 export interface CourierFolder {
@@ -139,3 +141,81 @@ export interface CopilotConfig {
   openaiModel: string;
 }
 
+
+export interface OpenApiPreview {
+  version: string;
+  info: { title: string; version: string; description: string };
+  servers: Array<{ url: string; description?: string }>;
+  security: Array<{ name: string; kind: string; in?: string; paramName?: string }>;
+  counts: { endpoints: number; models: number; folders: number; methods: Record<string, number> };
+  folders: Array<{ name: string; count: number }>;
+  endpoints: Array<{ method: string; path: string; name: string; tag: string; hasBody: boolean; deprecated: boolean }>;
+  warnings: string[];
+}
+
+export interface SpecSummary {
+  id: string;
+  name: string;
+  version: string;
+  importedAt: string;
+  source: string | null;
+}
+
+export interface MapEndpoint {
+  key: string;
+  method: string;
+  path: string;
+  name: string;
+  description: string;
+  tag: string;
+  deprecated: boolean;
+  parameters: Array<{ name: string; in: string; required: boolean; type: string; description: string }>;
+  requestBody: { contentType: string; required: boolean; type: string; models: string[] } | null;
+  responses: Array<{ status: string; description: string; contentType: string | null; type: string | null; models: string[] }>;
+  models: string[];
+}
+
+export interface MapModel {
+  name: string;
+  type: string;
+  description: string;
+  enum?: unknown[];
+  fields: Array<{ name: string; type: string; required: boolean; nullable: boolean; description: string; refs: string[] }>;
+  refsOut: string[];
+  usedBy: string[];
+  selfReferencing: boolean;
+  endpoints: Array<{ key: string; direct: boolean }>;
+}
+
+export interface ApiMap {
+  id: string;
+  name: string;
+  version: string;
+  info: { title: string; version: string; description: string };
+  endpoints: MapEndpoint[];
+  models: MapModel[];
+}
+
+export interface ContractMismatch {
+  path: string;
+  message: string;
+  expected?: string;
+  actual?: string;
+}
+
+export interface ContractResult {
+  matched: boolean;
+  reason?: string;
+  operation?: string;
+  status?: number;
+  matchedStatus?: string;
+  hasSchema?: boolean;
+  expectedType?: string;
+  validation: { valid: boolean; errors: ContractMismatch[] } | null;
+  drift: {
+    added: Array<{ path: string; observed: string; occurrences: number }>;
+    missing: Array<{ path: string; required: boolean; absentIn: number; of: number }>;
+    typeChanged: Array<{ path: string; expected: string; observed: string }>;
+    summary: { added: number; missing: number; typeChanged: number; total: number };
+  } | null;
+}

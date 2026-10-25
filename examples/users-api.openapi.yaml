@@ -1,0 +1,84 @@
+openapi: 3.0.3
+info:
+  title: Users API
+  version: 1.0.0
+  description: Small demo spec for JSONPlaceholder users. It deliberately differs from the live API so the Contract tab shows drift.
+servers:
+  - url: https://jsonplaceholder.typicode.com
+paths:
+  /users:
+    get:
+      summary: Get Users List
+      operationId: listUsers
+      tags: [Users]
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+  /users/{userId}:
+    get:
+      summary: Get Single User by ID
+      operationId: getUser
+      tags: [Users]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 2
+      responses:
+        '200':
+          description: A user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: Not found
+components:
+  schemas:
+    User:
+      type: object
+      required: [id, name, email, nickname]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        nickname:
+          type: string
+          description: Not returned by the live API, so it shows as missing.
+        phone:
+          type: integer
+          description: Live API returns a string, so it shows as type-changed.
+        address:
+          $ref: '#/components/schemas/Address'
+    Address:
+      type: object
+      properties:
+        street:
+          type: string
+        city:
+          type: string
+        zipcode:
+          type: string
+        geo:
+          $ref: '#/components/schemas/Geo'
+    Geo:
+      type: object
+      properties:
+        lat:
+          type: number
+          description: Live API returns a string, so it shows as type-changed.
+        lng:
+          type: number

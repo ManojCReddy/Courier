@@ -1,4 +1,4 @@
-import { CourierCollection, Environment, HttpResponse, CourierRequest, CopilotConfig, AppSettings } from '../types';
+import { CourierCollection, Environment, HttpResponse, CourierRequest, CopilotConfig, AppSettings, OpenApiPreview, SpecSummary, ApiMap, ContractResult } from '../types';
 
 const BASE_URL = '/api';
 
@@ -80,6 +80,54 @@ export async function parseCurlCommand(curl: string): Promise<Partial<CourierReq
     throw new Error(err.error || 'Failed to parse cURL');
   }
   return res.json();
+}
+
+async function postJson<T>(url: string, payload: unknown, fallback: string): Promise<T> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || fallback);
+  }
+  return res.json();
+}
+
+export function previewOpenApi(content: string): Promise<OpenApiPreview> {
+  return postJson(`${BASE_URL}/openapi/preview`, { content }, 'Failed to read the specification');
+}
+
+export function importOpenApi(payload: {
+  content: string;
+  filename?: string;
+  name?: string;
+  baseUrl?: string;
+}): Promise<{ collection: CourierCollection; summary: OpenApiPreview }> {
+  return postJson(`${BASE_URL}/openapi/import`, payload, 'Failed to import the specification');
+}
+
+export async function fetchSpecs(): Promise<SpecSummary[]> {
+  const res = await fetch(`${BASE_URL}/specs`);
+  if (!res.ok) throw new Error('Failed to fetch specifications');
+  return res.json();
+}
+
+export async function fetchApiMap(specId: string): Promise<ApiMap> {
+  const res = await fetch(`${BASE_URL}/specs/${encodeURIComponent(specId)}/map`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to load the API map');
+  }
+  return res.json();
+}
+
+export function checkContract(
+  specId: string,
+  payload: { method: string; path: string; status: number; data: unknown }
+): Promise<ContractResult> {
+  return postJson(`${BASE_URL}/specs/${encodeURIComponent(specId)}/contract`, payload, 'Failed to check the response contract');
 }
 
 export async function callCopilot(params: {

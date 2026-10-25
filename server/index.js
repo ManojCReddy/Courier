@@ -3,9 +3,11 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { initStorage, getCollections, saveCollection, deleteCollection, getEnvironments, saveEnvironment, deleteEnvironment } from './services/storageService.js';
+import { initStorage, getCollections, saveCollection, deleteCollection, getEnvironments, saveEnvironment, deleteEnvironment, saveSpec, getSpec, listSpecs, deleteSpec } from './services/storageService.js';
 import { executeHttpRequest } from './services/httpExecutor.js';
 import { parseCurl } from './services/curlParser.js';
+import { parseSpecText, detectSpecVersion, previewSpec, buildCollection, buildApiMap, newSpecId } from './services/openapi.js';
+import { checkContract } from './services/contractService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,7 +71,76 @@ app.post('/api/collections', (req, res) => {
 app.delete('/api/collections/:id', (req, res) => {
   try {
     const success = deleteCollection(req.params.id);
+    // Keep the saved spec while any remaining collection (e.g. a duplicate) still links to it.
+    const stillReferenced = getCollections().some(c => JSON.stringify(c).includes(`"specId":"${req.params.id}"`));
+    if (!stillReferenced) deleteSpec(req.params.id);
     res.json({ success });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// OpenAPI / Swagger import
+function loadSpecDocument(content) {
+  const doc = parseSpecText(content);
+  detectSpecVersion(doc);
+  return doc;
+}
+
+app.post('/api/openapi/preview', (req, res) => {
+  try {
+    const doc = loadSpecDocument(req.body?.content);
+    res.json(previewSpec(doc));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/openapi/import', (req, res) => {
+  try {
+    const { content, name, baseUrl, filename } = req.body || {};
+    const doc = loadSpecDocument(content);
+    const specId = newSpecId();
+    const collection = buildCollection(doc, specId, { name: name?.trim() || undefined, baseUrl: baseUrl?.trim() || undefined });
+    saveSpec(specId, {
+      name: collection.name,
+      version: detectSpecVersion(doc).label,
+      importedAt: new Date().toISOString(),
+      source: filename || null,
+      doc,
+    });
+    saveCollection(collection);
+    res.json({ collection, summary: previewSpec(doc) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/api/specs', (req, res) => {
+  try {
+    res.json(listSpecs());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/specs/:id/map', (req, res) => {
+  try {
+    const spec = getSpec(req.params.id);
+    if (!spec) return res.status(404).json({ error: 'Specification not found' });
+    res.json({ id: spec.id, name: spec.name, ...buildApiMap(spec.doc) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/specs/:id/contract', (req, res) => {
+  try {
+    const spec = getSpec(req.params.id);
+    if (!spec) return res.status(404).json({ error: 'Specification not found' });
+    const { method, path: opPath, status, data } = req.body || {};
+    if (!method || !opPath) return res.status(400).json({ error: 'method and path are required' });
+    res.json(checkContract(spec.doc, { method, path: opPath, status, data }));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

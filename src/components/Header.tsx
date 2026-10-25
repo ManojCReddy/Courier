@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Sliders, Globe, ShieldCheck, Settings, Columns, Rows, Minus, Square, X } from 'lucide-react';
+import { Play, Sliders, Globe, ShieldCheck, Settings, Columns, Rows, Minus, Square, X, FileJson, Network } from 'lucide-react';
 import courierLogo from '../../assets/courier-icon.png';
 import { Environment, AppSettings } from '../types';
 
@@ -10,6 +10,8 @@ interface HeaderProps {
   onOpenEnvModal: () => void;
   onOpenCurlModal: () => void;
   onOpenSuiteRunner: () => void;
+  onOpenApiImport: () => void;
+  onOpenApiMap: () => void;
   onOpenSettingsModal: () => void;
   layout: AppSettings['layout'];
   onToggleLayout: () => void;
@@ -22,6 +24,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenEnvModal,
   onOpenCurlModal,
   onOpenSuiteRunner,
+  onOpenApiImport,
+  onOpenApiMap,
   onOpenSettingsModal,
   layout,
   onToggleLayout,
@@ -49,7 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         <div className="hidden md:flex items-center gap-1 text-[11px] text-emerald-400/90 bg-emerald-950/40 border border-emerald-800/40 px-2 py-0.5 rounded-full">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Local-First • 100% Air-Gapped</span>
+          <span>Local-First • Telemetry-Free</span>
         </div>
       </div>
 
@@ -82,6 +86,24 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Keep space clear for the absolutely-pinned window controls. */}
       <div className="flex items-center gap-2 pr-32">
+        <button
+          onClick={onOpenApiImport}
+          className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/80 transition-colors"
+          title="Import an OpenAPI 3.0 or Swagger 2.0 specification"
+        >
+          <FileJson className="w-3.5 h-3.5 text-zinc-400" />
+          <span>Import API Spec</span>
+        </button>
+
+        <button
+          onClick={onOpenApiMap}
+          className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/80 transition-colors"
+          title="Explore endpoints and models from imported specs"
+        >
+          <Network className="w-3.5 h-3.5 text-zinc-400" />
+          <span>API Map</span>
+        </button>
+
         <button
           onClick={onOpenSuiteRunner}
           className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-emerald-400 border border-emerald-900/60 transition-colors"
